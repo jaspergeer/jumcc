@@ -7,22 +7,22 @@ data Token = Keyword     String
            | Operator    Char
            deriving (Show, Eq)
 
-c_SPECSYMB = "(){}[];,"
-c_IDENT_START = '_':['a'..'z'] ++ ['A'..'Z']
-c_IDENT_CHAR = c_IDENT_START ++ ['0'..'9']
-c_KEYWORDS = ["if","while","return","else"]
-c_TYPES = ["int", "char"]
-c_OPERATOR_START = "=><*/&!+-" -- not supported - "^%~|.?:"
-c_OPERATORS = ["=","==",">","<","<=",">=","!=",
+cSpecSymbs = "(){}[];,"
+cIdentBegin = '_':['a'..'z'] ++ ['A'..'Z']
+cIdentChar = cIdentBegin ++ ['0'..'9']
+cKeywords = ["if","while","return","else"]
+cTypes = ["int", "char"]
+cOperatorBegin = "=><*/&!+-" -- not supported - "^%~|.?:"
+cOperators = ["=","==",">","<","<=",">=","!=",
                "*","/","+","-","!", "&"]
 
 
 lexer :: String -> [Token]
 lexer [] = []
 lexer (x:xs)
-    | x `elem` c_SPECSYMB       = SpecSymb x:lexer xs
+    | x `elem` cSpecSymbs       = SpecSymb x:lexer xs
     | x == '"'                  = lexer xs -- parse string
     | x `elem` ['1'..'9']       = lexer xs -- parse num
-    | x `elem` c_OPERATOR_START = lexer xs -- parse operator
-    | x `elem` c_IDENT_START    = lexer xs -- parse identifier
+    | x `elem` cOperatorBegin   = lexer xs -- parse operator
+    | x `elem` cIdentBegin      = lexer xs -- parse identifier
     | otherwise                 = lexer xs
