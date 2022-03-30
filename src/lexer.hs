@@ -1,4 +1,4 @@
-module Lexer where
+module Lexer (Token, lexer) where
 data Token = Keyword    String
            | Identifier String
            | Int        Integer
@@ -11,7 +11,7 @@ data Token = Keyword    String
 cSpecSymbs      = "(){}[];,"
 cIdentBegin     = '_':['a'..'z'] ++ ['A'..'Z']
 cIdentChar      = cIdentBegin ++ ['0'..'9']
-cKeywords       = ["if","while","return","else","char", "int"]
+cKeywords       = ["if","while","return","else"]
 cTypes          = ["int", "char"]
 cOperatorBegin  = "=><*/&!+-" -- not supported - "^%~|.?:"
 cOperators      = ["=","==",">","<","<=",">=","!=","*","/","+","-","!", "&"]
@@ -21,6 +21,7 @@ lexParseString :: String -> String -> [Token]
 lexParseString t [] = error "couldn't parse string literal"
 lexParseString tokStr (x:xs)
     | tokStr `elem` cKeywords   = Keyword tokStr:lexer (x:xs)
+    | tokStr `elem` cTypes      = Keyword tokStr:lexer (x:xs)
     | x == '\\'                 = lexParseString (tokStr ++ [toEscapeSeq [x,head xs]]) (tail xs)
     | x == '\"'                 = String tokStr:lexer xs
     | otherwise                 = lexParseString (tokStr ++ [x]) xs
