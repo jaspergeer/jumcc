@@ -1,11 +1,11 @@
 module Lexer where
-data Token = Keyword     String
-           | Identifier  String
-           | IntConst    Integer
-           | CharConst   Char
-           | String      String
-           | SpecSymb    Char
-           | Operator    String
+data Token = Keyword    String
+           | Identifier String
+           | Int        Integer
+           | Char       Char
+           | String     String
+           | SpecSymb   Char
+           | Operator   String
            deriving (Show, Eq)
 
 cSpecSymbs      = "(){}[];,"
@@ -23,13 +23,13 @@ lexParseString tokStr (x:xs)
     | tokStr `elem` cKeywords   = Keyword tokStr:lexer (x:xs)
     | x == '\\'                 = lexParseString (tokStr ++ [toEscapeSeq [x,head xs]]) (tail xs)
     | x == '\"'                 = String tokStr:lexer xs
-    | otherwise                  = lexParseString (tokStr ++ [x]) xs
+    | otherwise                 = lexParseString (tokStr ++ [x]) xs
 
 lexParseNumConst :: String -> String -> [Token]
 lexParseNumConst t [] = error "couldn't parse numeric literal"
 lexParseNumConst tokStr (x:xs)
     | x `elem` ['0'..'9']   = lexParseNumConst (tokStr ++ [x]) xs
-    | otherwise             = IntConst (read tokStr):lexer xs
+    | otherwise             = Int (read tokStr):lexer (x:xs)
 
 lexParseOperator :: Char -> String -> [Token]
 lexParseOperator t [] = error "couldn't parse operator"
@@ -47,8 +47,8 @@ lexParseCharConst :: String -> [Token]
 lexParseCharConst [] = error "couldn't parse char literal"
 lexParseCharConst [t] = error "couldn't parse char literal"
 lexParseCharConst (x:y:ys)
-    | ys /= [] && head ys == '\''   = CharConst (toEscapeSeq [x,y]):lexer (tail ys)
-    | y == '\''                     = CharConst x:lexer ys
+    | ys /= [] && head ys == '\''   = Char (toEscapeSeq [x,y]):lexer (tail ys)
+    | y == '\''                     = Char x:lexer ys
     | otherwise                     = error "couldn't parse char literal"
 
 toEscapeSeq :: String -> Char
