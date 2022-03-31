@@ -1,8 +1,8 @@
 /**
  * @file um.c
  * @author Jimmy Maslen and Jasper Geer
- * @brief The implementation of a um emulator. The um vm emulator in a file 
- *        containing bitpacked um instructions and executes them.
+ * @brief The implementation of a um emulator. The emulator executes a series
+ *        of bitpacked instructions passed to the program as a file.
  *        
  * @version 0.1
  * @date 2021-11-17
@@ -15,7 +15,7 @@
 #include <stdlib.h>
 #include <stdint.h>
 #include <sys/stat.h>
-#include "assert.h"
+#include <assert.h>
 
 typedef enum Um_opcode
 {

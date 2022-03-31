@@ -7,7 +7,7 @@ type Identifier = String
 data Program = Program FunctionDecl
 data FunctionDecl = FunctionDecl Identifier Statement
 data Statement = Return Expression
-data Expression = LiteralInt Int
+data Expression = Constant Int
 
 parseFunctionDecl :: [Token] -> Maybe FunctionDecl
 parseFunctionDecl [] = Nothing
