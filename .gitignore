@@ -1,7 +1,4 @@
 
-# Created by https://www.toptal.com/developers/gitignore/api/haskell,visualstudiocode,macos
-# Edit at https://www.toptal.com/developers/gitignore?templates=haskell,visualstudiocode,macos
-
 ### Haskell ###
 dist
 dist-*
@@ -75,6 +72,7 @@ Temporary Items
 .history
 .ionide
 
-# Support for Project snippet scope
-
-# End of https://www.toptal.com/developers/gitignore/api/haskell,visualstudiocode,macos
+# We don't need to include the UM implementation or documentation
+um.c
+um.pdf
+umasm.pdf
