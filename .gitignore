@@ -73,6 +73,4 @@ Temporary Items
 .ionide
 
 # We don't need to include the UM implementation or documentation
-um.c
-um.pdf
-umasm.pdf
+um/*
