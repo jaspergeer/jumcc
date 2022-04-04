@@ -1,4 +1,4 @@
-module Lexer (Token, lexer) where
+module Lexer where
 data Token = Keyword    String
            | Identifier String
            | Int        Integer
