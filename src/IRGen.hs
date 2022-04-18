@@ -1,5 +1,5 @@
 module IRGen where
-import Parser
+import ASTGen
 
 type IRVarName = String
 type IRFrame = Int

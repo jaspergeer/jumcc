@@ -1,5 +1,5 @@
 module AsmGen where
-import Parser
+import ASTGen
 
 -- === Register Conventions === --
 -- Note: For now, we use naive register allocation
