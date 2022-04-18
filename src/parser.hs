@@ -1,45 +1,58 @@
 module Parser where
-import Lexer
+
+import Text.Parsec.String (Parser)
+import Text.Parsec.Char
+import Text.Parsec
 
 type Identifier = String
-data Op = Add | Sub | Mult | Div deriving Show
+type Constant = Int
+data BinOp = Add | Sub | Mul | Div | Gt | Ge | Lt | Le | Eq | Ne deriving Show
+
+cSpecSymbs      = "(){}[];,"
+cIdentBegin     = '_':['a'..'z'] ++ ['A'..'Z']
+cIdentChar      = cIdentBegin ++ ['0'..'9']
+cKeywords       = ["if","while","return","else"]
+cTypes          = ["int", "char"]
+cBinOpBegin     = "+-*/=><!"
+cBinOp          = ["==", ">", "<", "!=", ">=", "<=", "+", "-", "*", "/"]
 
 -- AST Structure --
 data Program = Prog FunctionDecl deriving Show
 data FunctionDecl = FuncDecl Identifier [Statement] deriving Show
-data Statement = NoOp | Return Expression | Assign Variable Expression deriving Show
-data Expression = ConstExpr Integer | VarExpr Variable | BinExpr Expression Op Expression deriving Show
+data Statement = NoOp
+                | Return Expression
+                | Assign Variable Expression
+                deriving Show
+data Expression = ConstExpr Constant
+                | VarExpr Variable
+                | BinExpr Expression BinOp Expression
+                deriving Show
 data Variable = Var Identifier deriving Show
 
-parseFunctionDecl :: [Token] -> Maybe ([Token], FunctionDecl)
-parseFunctionDecl [] = Nothing
-parseFunctionDecl (Identifier fType:Identifier fName:SpecSymb '(':SpecSymb ')':SpecSymb '{':xs) =
-    case parseStatementList xs [] of
-        (toParse, statList) -> if head toParse == SpecSymb '}' then Just (tail toParse, FuncDecl fName statList) else Nothing
-parseFunctionDecl x = Nothing 
+-- variable :: Parser Variable
+-- variable = do
 
-parseStatementList :: [Token] -> [Statement] -> ([Token], [Statement])
-parseStatementList [] x = ([], x)
-parseStatementList toks accum = case parseStatement toks of
-    Nothing -> (toks, accum)
-    Just (toParse, stat) -> parseStatementList toParse (accum ++ [stat])
+constant :: Parser Constant
+constant = do
+    n <- many1 digit
+    return (read n)
 
-parseStatement :: [Token] -> Maybe ([Token], Statement)
-parseStatement [] = Nothing
-parseStatement (SpecSymb ';':xs) = Just (xs, NoOp)
-parseStatement (Identifier "return":xs) =
-    case parseExpression xs of
-        Nothing -> Nothing
-        Just (toParse, expr) -> if head toParse == SpecSymb ';' then Just (tail toParse, Return expr) else Nothing
-parseStatement x = Nothing
+identifier :: Parser Identifier
+identifier = many1 (oneOf cIdentChar)
 
-parseExpression :: [Token] -> Maybe ([Token], Expression)
-parseExpression [] = Nothing
-parseExpression (Int x:xs) = Just (xs, ConstExpr x)
-parseExpression x = Nothing
-
-parser :: [Token] -> Maybe Program
-parser [] = error "couldn't parse"
-parser toks = case parseFunctionDecl toks of
-    Just (_, funcDecl) -> Just (Prog funcDecl)
-    Nothing -> Nothing
+binop :: Parser BinOp
+binop = do
+    o <- oneOf cBinOpBegin
+    p <- many (char '=')
+    case o:p of
+        ">"     -> return Gt
+        ">="    -> return Ge
+        "<"     -> return Lt
+        "<="    -> return Le
+        "=="    -> return Eq
+        "!="    -> return Ne
+        "+"     -> return Add
+        "-"     -> return Sub
+        "*"     -> return Mul
+        "/"     -> return Div
+        _       -> fail "could not parse binary operator"
