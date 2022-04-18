@@ -4,10 +4,6 @@ import Text.Parsec.String (Parser)
 import Text.Parsec.Char
 import Text.Parsec
 
-type Identifier = String
-type Constant = Int
-data BinOp = Add | Sub | Mul | Div | Gt | Ge | Lt | Le | Eq | Ne deriving Show
-
 cSpecSymbs      = "(){}[];,"
 cIdentBegin     = '_':['a'..'z'] ++ ['A'..'Z']
 cIdentChar      = cIdentBegin ++ ['0'..'9']
@@ -18,12 +14,12 @@ cBinOp          = ["==", ">", "<", "!=", ">=", "<=", "+", "-", "*", "/"]
 
 -- AST Structure --
 data Program = Program FuncDecl deriving Show
-data FuncDecl = FuncDecl Identifier [Stat] deriving Show
-data Stat = NoOp
-        | Return Expr
+data FuncDecl = FuncDecl Ident [Stat] deriving Show
+data Stat = Return Expr
         | Assign Var Expr
                 deriving Show
-data Expr = ConstExpr Constant
+data Expr = IntExpr Int
+        | CharExpr Char
         | VarExpr Var
         | GeExpr Expr Expr
         | LeExpr Expr Expr
@@ -36,7 +32,9 @@ data Expr = ConstExpr Constant
         | MulExpr Expr Expr
         | DivExpr Expr Expr
         deriving Show
-data Var = Var Identifier deriving Show
+newtype Var = Var Ident deriving Show
+newtype Ident = Ident String deriving Show
+newtype StrLit = StrLit String deriving Show
 
 -- variable :: Parser Variable
 -- variable = do
@@ -50,28 +48,56 @@ brackd x = between (char '[' <* spaces) (char ']') x <* spaces
 braced :: Parser a -> Parser a
 braced x = between (char '{' <* spaces) (char '}') x <* spaces
 
-constant :: Parser Constant
-constant = read <$> many1 digit <* spaces
+squoted :: Parser a -> Parser a
+squoted x = between (char '\'' <* spaces) (char '\'') x <* spaces
 
-identifier :: Parser Identifier
-identifier = many1 (oneOf cIdentChar) <* spaces
+dquoted :: Parser a -> Parser a
+dquoted x = between (char '"' <* spaces) (char '"') x <* spaces
 
-constExpr :: Parser Expr
-constExpr = ConstExpr <$> constant <* spaces
+-- Primitives --
+
+intLiteral :: Parser Int
+intLiteral = read <$> many1 digit <* spaces
+
+strLiteral :: Parser StrLit
+strLiteral = StrLit <$> dquoted (many anyChar ) <* spaces
+
+charLiteral :: Parser Char
+charLiteral = squoted anyChar <* spaces
+
+identifier :: Parser Ident
+identifier = Ident <$> many1 (oneOf cIdentChar) <* spaces
+
+var :: Parser Var
+var = Var <$> identifier <* spaces
+
+-- Expressions --
+
+intExpr :: Parser Expr
+intExpr = IntExpr <$> intLiteral <* spaces
+
+charExpr :: Parser Expr
+charExpr = CharExpr <$> charLiteral <* spaces
+
+varExpr :: Parser Expr
+varExpr = VarExpr <$> var
 
 expr :: Parser Expr
 expr = chainl1 term op
-    where op = try (GeExpr <$ string ">=")
-            <|> try (LeExpr <$ string "<=")
-            <|> try (EqExpr <$ string "==")
-            <|> try (NeExpr <$ string "!=")
-            <|> GtExpr <$ string ">"
-            <|> LtExpr <$ string "<"
-            <|> AddExpr <$ string "+"
-            <|> SubExpr <$ string "-"
-            <|> MulExpr <$ string "*"
-            <|> DivExpr <$ string "/"
+    where op = try (GeExpr <$ string ">=" <* spaces)
+            <|> try (LeExpr <$ string "<=" <* spaces)
+            <|> try (EqExpr <$ string "==" <* spaces)
+            <|> try (NeExpr <$ string "!=" <* spaces)
+            <|> GtExpr <$ string ">" <* spaces
+            <|> LtExpr <$ string "<" <* spaces
+            <|> AddExpr <$ string "+" <* spaces
+            <|> SubExpr <$ string "-" <* spaces
+            <|> MulExpr <$ string "*" <* spaces
+            <|> DivExpr <$ string "/" <* spaces
 
 term :: Parser Expr
-term = try constExpr
+term = try intExpr
+    <|> try charExpr
+    <|> try varExpr
     <|> try (parend expr)
+
