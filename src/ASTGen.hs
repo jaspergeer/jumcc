@@ -106,8 +106,8 @@ varExpr :: Parser Expr
 varExpr = VarE <$> var
 
 expr :: Parser Expr
-expr = chainl1 term op
-    where op = try (Ge <$ string ">=" <* spaces)
+expr = chainl1 term op where
+    op = try (Ge <$ string ">=" <* spaces)
             <|> try (Le <$ string "<=" <* spaces)
             <|> try (Eq <$ string "==" <* spaces)
             <|> try (Ne <$ string "!=" <* spaces)
@@ -117,12 +117,11 @@ expr = chainl1 term op
             <|> Sub <$ string "-" <* spaces
             <|> Mul <$ string "*" <* spaces
             <|> Div <$ string "/" <* spaces
+    term = try intExpr
+        <|> try charExpr
+        <|> try varExpr
+        <|> try (parend expr)
 
-term :: Parser Expr
-term = try intExpr
-    <|> try charExpr
-    <|> try varExpr
-    <|> try (parend expr)
 
 -- statements --
 
