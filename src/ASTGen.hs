@@ -17,7 +17,7 @@ data Program = Program [FuncDecl] deriving Show
 data FuncDecl = FuncDecl CType Ident [Stat] deriving Show
 data Stat = ReturnS Expr
         | AssignS Var Expr
-        | VarDeclS CType Ident
+        | VarDeclS CType Var
                 deriving Show
 data Expr = IntE Int
         | CharE Char
@@ -138,7 +138,7 @@ assignStat = AssignS <$> var <* spaces <*> (char '=' *> spaces *> expr <* char '
 varDeclStat :: Parser Stat
 varDeclStat = do 
     t <- cType
-    n <- identifier
+    n <- var
     a <- arr t
     spaces
     char ';'
