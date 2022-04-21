@@ -13,8 +13,9 @@ cBinOpBegin     = "+-*/=><!"
 cBinOp          = ["==", ">", "<", "!=", ">=", "<=", "+", "-", "*", "/"]
 
 -- AST Structure --
-data Program = Program [FuncDecl] deriving Show
-data FuncDecl = FuncDecl CType Ident [Stat] deriving Show
+newtype Program = Program [FuncDecl] deriving Show
+data FuncDecl = FuncDecl CType Ident [Param] [Stat] deriving Show
+data Param = Param CType Var deriving Show
 data Stat = ReturnS Expr
         | AssignS Var Expr
         | VarDeclS CType Var
@@ -126,8 +127,9 @@ expr = chainl1 term op where
 -- statements --
 
 statement :: Parser Stat
-statement = try returnStat
-        <|> try assignStat
+statement = try returnStat <* spaces
+        <|> try assignStat <* spaces
+        <|> try varDeclStat <* spaces
 
 returnStat :: Parser Stat
 returnStat = ReturnS <$> (string "return" *> spaces *> expr <* spaces <* char ';')
@@ -146,3 +148,13 @@ varDeclStat = do
         arr t = try $ Arr <$> brackd intLiteral <*> arr t
             <|> return t
 
+-- function declarations --
+
+funcDecl :: Parser FuncDecl
+funcDecl = FuncDecl <$> cType <*> identifier <*> parend (param `sepBy` (char ',' <* spaces)) <* spaces <*> braced (many statement) where
+    param = Param <$> cType <*> var <* spaces
+
+-- program --
+
+program :: Parser Program
+program = Program <$> many1 funcDecl
