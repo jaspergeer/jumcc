@@ -2,7 +2,6 @@ module AsmGen where
 import ASTGen
 
 -- === Register Conventions === --
--- Note: For now, we use naive register allocation
 -- r0 - zero register
 -- r1 - return address/return value
 -- r2 - stack pointer

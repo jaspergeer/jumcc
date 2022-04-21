@@ -15,14 +15,17 @@ cBinOp          = ["==", ">", "<", "!=", ">=", "<=", "+", "-", "*", "/"]
 -- AST Structure --
 newtype Program = Program [FuncDecl] deriving Show
 data FuncDecl = FuncDecl CType Ident [Param] [Stat] deriving Show
+data FuncCall = FuncCall Ident [Stat] deriving Show
 data Param = Param CType Var deriving Show
 data Stat = ReturnS Expr
         | AssignS Var Expr
         | VarDeclS CType Var
+        | FuncCallS FuncCall
                 deriving Show
 data Expr = IntE Int
         | CharE Char
         | VarE Var
+        | FunE FuncCall
         | Ge Expr Expr
         | Le Expr Expr
         | Eq Expr Expr
@@ -118,7 +121,8 @@ expr = chainl1 term op where
             <|> Sub <$ string "-" <* spaces
             <|> Mul <$ string "*" <* spaces
             <|> Div <$ string "/" <* spaces
-    term = try intExpr
+    term = try $ FunE <$> funcCall
+        <|> try intExpr
         <|> try charExpr
         <|> try varExpr
         <|> try (parend expr)
@@ -130,6 +134,7 @@ statement :: Parser Stat
 statement = try returnStat <* spaces
         <|> try assignStat <* spaces
         <|> try varDeclStat <* spaces
+        <|> try (FuncCallS <$> funcCall)
 
 returnStat :: Parser Stat
 returnStat = ReturnS <$> (string "return" *> spaces *> expr <* spaces <* char ';')
@@ -148,11 +153,14 @@ varDeclStat = do
         arr t = try $ Arr <$> brackd intLiteral <*> arr t
             <|> return t
 
--- function declarations --
+-- functions --
 
 funcDecl :: Parser FuncDecl
 funcDecl = FuncDecl <$> cType <*> identifier <*> parend (param `sepBy` (char ',' <* spaces)) <* spaces <*> braced (many statement) where
     param = Param <$> cType <*> var <* spaces
+
+funcCall :: Parser FuncCall
+funcCall = FuncCall <$> identifier <*> parend (statement `sepBy ` (char ',' <* spaces))
 
 -- program --
 
