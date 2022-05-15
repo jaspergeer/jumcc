@@ -1,2 +1,7 @@
 module Environment where
-import Data.Map as M
+import ASTGen
+import AsmGen
+import SymbTab
+import Text.Parsec.String (Parser)
+import Text.Parsec.Char
+import Text.Parsec

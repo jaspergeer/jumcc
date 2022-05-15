@@ -12,16 +12,19 @@ cTypes          = ["int", "char"]
 cBinOpBegin     = "+-*/=><!"
 cBinOp          = ["==", ">", "<", "!=", ">=", "<=", "+", "-", "*", "/"]
 
--- AST Structure --
+-- AST structure --
+
 newtype Program = Program [FuncDecl] deriving Show
-data FuncDecl = FuncDecl CType Ident [Param] [Stat] deriving Show
-data FuncCall = FuncCall Ident [Stat] deriving Show
+data FuncDecl = FuncDecl CType String [Param] [Stat] deriving Show
+data FuncCall = FuncCall String [Expr] deriving Show
 data Param = Param CType Var deriving Show
 data Stat = ReturnS Expr
         | AssignS Var Expr
         | VarDeclS CType Var
         | FuncCallS FuncCall
-                deriving Show
+        | IfS Expr [Stat]
+        | WhileS Expr [Stat]
+        deriving Show
 data Expr = IntE Int
         | CharE Char
         | VarE Var
@@ -37,8 +40,7 @@ data Expr = IntE Int
         | Mul Expr Expr
         | Div Expr Expr
         deriving Show
-newtype Var = Var Ident deriving Show
-newtype Ident = Ident String deriving Show
+newtype Var = Var String deriving (Show, Eq)
 newtype StrLit = StrLit String deriving Show
 data CType = CInt 
         | CChar 
@@ -83,8 +85,8 @@ strLiteral = StrLit <$> dquoted (many anyChar ) <* spaces
 charLiteral :: Parser Char
 charLiteral = squoted anyChar <* spaces
 
-identifier :: Parser Ident
-identifier = Ident <$> many1 (oneOf cIdentChar) <* spaces
+identifier :: Parser String
+identifier = many1 (oneOf cIdentChar) <* spaces
 
 var :: Parser Var
 var = Var <$> identifier <* spaces
@@ -96,7 +98,6 @@ cType = try (leftRec b ptr)
         ptr = Ptr <$ spaces <* char '*' <* spaces
         b = try (CInt <$ string "int" <* spaces)
             <|> try (CChar <$ string "char" <* spaces)
-
 
 -- expressions --
 
@@ -110,7 +111,8 @@ varExpr :: Parser Expr
 varExpr = VarE <$> var
 
 expr :: Parser Expr
-expr = chainl1 term op where
+expr = try (chainl1 term op)
+    <|> try term where
     op = try (Ge <$ string ">=" <* spaces)
             <|> try (Le <$ string "<=" <* spaces)
             <|> try (Eq <$ string "==" <* spaces)
@@ -121,17 +123,18 @@ expr = chainl1 term op where
             <|> Sub <$ string "-" <* spaces
             <|> Mul <$ string "*" <* spaces
             <|> Div <$ string "/" <* spaces
-    term = try $ FunE <$> funcCall
+    term = try (FunE <$> funcCall)
         <|> try intExpr
         <|> try charExpr
         <|> try varExpr
         <|> try (parend expr)
 
-
 -- statements --
 
 statement :: Parser Stat
-statement = try returnStat <* spaces
+statement = try ifElseS <* spaces
+        <|> try whileS <* spaces
+        <|> try returnStat <* spaces
         <|> try assignStat <* spaces
         <|> try varDeclStat <* spaces
         <|> try (FuncCallS <$> funcCall)
@@ -150,8 +153,14 @@ varDeclStat = do
     spaces
     char ';'
     return $ VarDeclS a n where
-        arr t = try $ Arr <$> brackd intLiteral <*> arr t
+        arr t = try ( Arr <$> brackd intLiteral <*> arr t)
             <|> return t
+
+ifElseS :: Parser Stat
+ifElseS = IfS <$> (string "if" *> spaces *> parend expr) <*> braced (many statement)
+
+whileS :: Parser Stat
+whileS = WhileS <$> (string "while" *> spaces *> parend expr) <*> braced (many statement)
 
 -- functions --
 
@@ -160,7 +169,7 @@ funcDecl = FuncDecl <$> cType <*> identifier <*> parend (param `sepBy` (char ','
     param = Param <$> cType <*> var <* spaces
 
 funcCall :: Parser FuncCall
-funcCall = FuncCall <$> identifier <*> parend (statement `sepBy ` (char ',' <* spaces))
+funcCall = FuncCall <$> identifier <*> parend (expr `sepBy ` (char ',' <* spaces))
 
 -- program --
 
