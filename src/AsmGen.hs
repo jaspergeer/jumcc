@@ -1,5 +1,6 @@
 module AsmGen where
 import ASTGen
+import SymbTab
 
 -- === Register Conventions === --
 -- r0 - zero register
@@ -13,3 +14,5 @@ data AsmReg = R0 | R1 | R2 | R3 | R4 | R6 | R7 deriving Enum
 
 visitProgram :: Program -> [String]
 visitProgram _ = []
+
+visitFuncDecl :: 
