@@ -1,7 +1,6 @@
 module SymbTab where
 
 import ASTGen
-import AsmGen
 
 -- map of variables to 
 data STable = STable [(Var, Integer)] Integer STable | SEmpty deriving Show
