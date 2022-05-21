@@ -14,8 +14,8 @@ cBinOp          = ["==", ">", "<", "!=", ">=", "<=", "+", "-", "*", "/"]
 
 -- AST structure --
 
-newtype Program = Program [FuncDecl] deriving Show
-data FuncDecl = FuncDecl CType String [Param] [Stat] deriving Show
+newtype Program = Program [ExtDecl] deriving Show
+data ExtDecl = FuncDecl CType String [Param] [Stat] | GlobDecl CType Var deriving Show
 data FuncCall = FuncCall String [Expr] deriving Show
 data Param = Param CType Var deriving Show
 data Stat = ReturnS Expr
@@ -24,6 +24,7 @@ data Stat = ReturnS Expr
         | FuncCallS FuncCall
         | IfS Expr [Stat]
         | WhileS Expr [Stat]
+        | PutC Expr
         deriving Show
 data Expr = IntE Int
         | CharE Char
@@ -39,6 +40,7 @@ data Expr = IntE Int
         | Sub Expr Expr
         | Mul Expr Expr
         | Div Expr Expr
+        | GetC
         deriving Show
 newtype Var = Var String deriving (Show, Eq)
 newtype StrLit = StrLit String deriving Show
@@ -110,6 +112,9 @@ charExpr = CharE <$> charLiteral <* spaces
 varExpr :: Parser Expr
 varExpr = VarE <$> var
 
+getCExpr :: Parser Expr
+getCExpr = GetC <$ string "getc()"
+
 expr :: Parser Expr
 expr = try (chainl1 term op)
     <|> try term where
@@ -127,6 +132,7 @@ expr = try (chainl1 term op)
         <|> try intExpr
         <|> try charExpr
         <|> try varExpr
+        <|> try getCExpr
         <|> try (parend expr)
 
 -- statements --
@@ -162,9 +168,28 @@ ifElseS = IfS <$> (string "if" *> spaces *> parend expr) <*> braced (many statem
 whileS :: Parser Stat
 whileS = WhileS <$> (string "while" *> spaces *> parend expr) <*> braced (many statement)
 
+putcS :: Parser Stat
+putcS = PutC <$> (string "putc" *> parend expr)
+
 -- functions --
 
-funcDecl :: Parser FuncDecl
+extDecl :: Parser ExtDecl
+extDecl = try globDecl
+        <|> try funcDecl
+
+globDecl :: Parser ExtDecl
+globDecl = do 
+    t <- cType
+    n <- var
+    a <- arr t
+    spaces
+    char ';'
+    spaces
+    return $ GlobDecl a n where
+        arr t = try ( Arr <$> brackd intLiteral <*> arr t)
+            <|> return t
+
+funcDecl :: Parser ExtDecl
 funcDecl = FuncDecl <$> cType <*> identifier <*> parend (param `sepBy` (char ',' <* spaces)) <* spaces <*> braced (many statement) where
     param = Param <$> cType <*> var <* spaces
 
@@ -174,4 +199,4 @@ funcCall = FuncCall <$> identifier <*> parend (expr `sepBy ` (char ',' <* spaces
 -- program --
 
 program :: Parser Program
-program = Program <$> many1 funcDecl
+program = Program <$> many1 extDecl
