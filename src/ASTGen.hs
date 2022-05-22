@@ -22,7 +22,8 @@ data Stat = ReturnS Expr
         | FuncCallS FuncCall
         | IfS Expr [Stat]
         | WhileS Expr [Stat]
-        | PutC Expr
+        | Out Expr
+        | Break
         deriving Show
 data Expr = IntE Int
         | CharE Char
@@ -47,7 +48,7 @@ data Expr = IntE Int
         | Bor Expr Expr
         | Xor Expr Expr
         | Mod Expr Expr
-        | GetC
+        | In
         deriving Show
 newtype Var = Var String deriving (Show, Eq)
 newtype StrLit = StrLit String deriving Show
@@ -119,8 +120,8 @@ charExpr = CharE <$> charLiteral <* spaces
 varExpr :: Parser Expr
 varExpr = VarE <$> var
 
-getCExpr :: Parser Expr
-getCExpr = GetC <$ string "getc()"
+inExpr :: Parser Expr
+inExpr = In <$ string "inb()"
 
 expr :: Parser Expr
 expr = try (chainl1 term op)
@@ -141,11 +142,11 @@ expr = try (chainl1 term op)
             <|> Bor <$ string "||" <* spaces
             <|> Xor <$ string "^" <* spaces
             <|> Mod <$ string "%" <* spaces
-    term = try (FunE <$> funcCall)
+    term = try inExpr
+        <|> try (FunE <$> funcCall)
         <|> try intExpr
         <|> try charExpr
         <|> try varExpr
-        <|> try getCExpr
         <|> try (parend expr)
         <|> try (Neg <$> (string "-" *> expr))
         <|> try (No <$> (string "!" *> expr))
@@ -154,12 +155,14 @@ expr = try (chainl1 term op)
 -- statements --
 
 statement :: Parser Stat
-statement = try ifElseS <* spaces
+statement = try outS <* spaces
+        <|> try ifElseS <* spaces
         <|> try whileS <* spaces
         <|> try returnStat <* spaces
         <|> try assignStat <* spaces
         <|> try varDeclStat <* spaces
         <|> try (FuncCallS <$> funcCall)
+        <|> try (Break <$ string "break" <* spaces <* char ';' <* spaces)
 
 returnStat :: Parser Stat
 returnStat = ReturnS <$> (string "return" *> spaces *> expr <* spaces <* char ';')
@@ -184,8 +187,8 @@ ifElseS = IfS <$> (string "if" *> spaces *> parend expr) <*> braced (many statem
 whileS :: Parser Stat
 whileS = WhileS <$> (string "while" *> spaces *> parend expr) <*> braced (many statement)
 
-putcS :: Parser Stat
-putcS = PutC <$> (string "putc" *> parend expr)
+outS :: Parser Stat
+outS = Out <$> (string "outb" *> parend expr <* spaces <* char ';')
 
 -- functions --
 
