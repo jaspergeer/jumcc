@@ -1,0 +1,7 @@
+.section init
+    .temps r5,r6,r7
+    .zero r0
+    r0 := 0
+    goto main linking r1
+    output r1
+    halt

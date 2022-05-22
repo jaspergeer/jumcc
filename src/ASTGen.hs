@@ -9,8 +9,6 @@ cIdentBegin     = '_':['a'..'z'] ++ ['A'..'Z']
 cIdentChar      = cIdentBegin ++ ['0'..'9']
 cKeywords       = ["if","while","return","else"]
 cTypes          = ["int", "char"]
-cBinOpBegin     = "+-*/=><!"
-cBinOp          = ["==", ">", "<", "!=", ">=", "<=", "+", "-", "*", "/"]
 
 -- AST structure --
 
@@ -29,6 +27,9 @@ data Stat = ReturnS Expr
 data Expr = IntE Int
         | CharE Char
         | VarE Var
+        | Neg Expr
+        | Lno Expr
+        | No Expr
         | FunE FuncCall
         | Ge Expr Expr
         | Le Expr Expr
@@ -36,16 +37,22 @@ data Expr = IntE Int
         | Ne Expr Expr
         | Gt Expr Expr
         | Lt Expr Expr
+        | Or Expr Expr
+        | And Expr Expr
         | Add Expr Expr
         | Sub Expr Expr
         | Mul Expr Expr
         | Div Expr Expr
+        | Band Expr Expr
+        | Bor Expr Expr
+        | Xor Expr Expr
+        | Mod Expr Expr
         | GetC
         deriving Show
 newtype Var = Var String deriving (Show, Eq)
 newtype StrLit = StrLit String deriving Show
-data CType = CInt 
-        | CChar 
+data CType = CInt
+        | CChar
         | Ptr CType
         | Arr Int CType
         deriving Show
@@ -65,7 +72,7 @@ parend :: Parser a -> Parser a
 parend x = between (char '(' <* spaces) (char ')') x <* spaces
 
 brackd :: Parser a -> Parser a
-brackd x = between (char '[' <* spaces) (char ']') x <* spaces 
+brackd x = between (char '[' <* spaces) (char ']') x <* spaces
 
 braced :: Parser a -> Parser a
 braced x = between (char '{' <* spaces) (char '}') x <* spaces
@@ -128,12 +135,21 @@ expr = try (chainl1 term op)
             <|> Sub <$ string "-" <* spaces
             <|> Mul <$ string "*" <* spaces
             <|> Div <$ string "/" <* spaces
+            <|> And <$ string "&&" <* spaces
+            <|> Band <$ string "&" <* spaces
+            <|> Or <$ string "||" <* spaces
+            <|> Bor <$ string "||" <* spaces
+            <|> Xor <$ string "^" <* spaces
+            <|> Mod <$ string "%" <* spaces
     term = try (FunE <$> funcCall)
         <|> try intExpr
         <|> try charExpr
         <|> try varExpr
         <|> try getCExpr
         <|> try (parend expr)
+        <|> try (Neg <$> (string "-" *> expr))
+        <|> try (No <$> (string "!" *> expr))
+        <|> try (Lno <$> (string "~" *> expr))
 
 -- statements --
 
@@ -152,7 +168,7 @@ assignStat :: Parser Stat
 assignStat = AssignS <$> var <* spaces <*> (char '=' *> spaces *> expr <* char ';')
 
 varDeclStat :: Parser Stat
-varDeclStat = do 
+varDeclStat = do
     t <- cType
     n <- var
     a <- arr t
@@ -178,7 +194,7 @@ extDecl = try globDecl
         <|> try funcDecl
 
 globDecl :: Parser ExtDecl
-globDecl = do 
+globDecl = do
     t <- cType
     n <- var
     a <- arr t
