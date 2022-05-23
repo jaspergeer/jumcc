@@ -96,7 +96,7 @@ visitStat prog@(AsmProg asm sim label) (WhileS cond body) = case visitExpr (AsmP
         AsmProg asm2 sim2@(StackSim ((StkFrame _ _ size):_)) label2 -> AsmProg (asm2
                                                                                     ++ replicate size "pop stack r2"
                                                                                     ++ ["goto L" ++ show label]
-                                                                                    ++ ["L" ++ show label ++ ":"]) (stkSimPopFrame sim2) label2
+                                                                                    ++ ["L" ++ show label1 ++ ":"]) (stkSimPopFrame sim2) label2
 
 getAddress :: AsmProg -> Expr -> AsmProg
 getAddress prog (Dref exp) = case visitExpr prog exp of
