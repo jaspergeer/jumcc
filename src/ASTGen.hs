@@ -13,12 +13,13 @@ cTypes          = ["int", "char"]
 -- AST structure --
 
 newtype Program = Program [ExtDecl] deriving Show
-data ExtDecl = FuncDecl CType String [Param] [Stat] | GlobDecl CType Var deriving Show
+data ExtDecl = FuncDecl CType String [VarDecl] [Stat] | GlobDecl CType Var deriving Show
 data FuncCall = FuncCall String [Expr] deriving Show
-data Param = Param CType Var deriving Show
+data VarDecl = VarDecl CType Var deriving Show
 data Stat = ReturnS Expr
-        | AssignS Var Expr
-        | VarDeclS CType Var
+        | AssignS Expr Expr
+        | VarDeclS VarDecl Expr
+        | ArrDeclS VarDecl [Expr]
         | FuncCallS FuncCall
         | IfS Expr [Stat]
         | WhileS Expr [Stat]
@@ -27,10 +28,12 @@ data Stat = ReturnS Expr
         deriving Show
 data Expr = IntE Int
         | CharE Char
-        | VarE Var
+        | VarE Var Expr
+        | RefE Var
         | Neg Expr
         | Lno Expr
         | No Expr
+        | Dref Expr
         | FunE FuncCall
         | Ge Expr Expr
         | Le Expr Expr
@@ -48,12 +51,13 @@ data Expr = IntE Int
         | Bor Expr Expr
         | Xor Expr Expr
         | Mod Expr Expr
+        | Arrset [Expr]
         | In
         deriving Show
 newtype Var = Var String deriving (Show, Eq)
 newtype StrLit = StrLit String deriving Show
-data CType = CInt
-        | CChar
+data CType = U32
+        | U8
         | Ptr CType
         | Arr Int CType
         deriving Show
@@ -106,8 +110,8 @@ cType = try (leftRec b ptr)
     <|> try b
     where
         ptr = Ptr <$ spaces <* char '*' <* spaces
-        b = try (CInt <$ string "int" <* spaces)
-            <|> try (CChar <$ string "char" <* spaces)
+        b = try (U32 <$ string "int" <* spaces)
+            <|> try (U8 <$ string "char" <* spaces)
 
 -- expressions --
 
@@ -118,14 +122,18 @@ charExpr :: Parser Expr
 charExpr = CharE <$> charLiteral <* spaces
 
 varExpr :: Parser Expr
-varExpr = VarE <$> var
+varExpr = try (do
+    v <- var
+    dims <- spaces *> brackd expr
+    return $ VarE v dims)
+    <|> (flip VarE (IntE 0) <$> var)
 
 inExpr :: Parser Expr
 inExpr = In <$ string "inb()"
 
-expr :: Parser Expr
-expr = try (chainl1 term op)
-    <|> try term where
+binExpr :: Parser Expr
+binExpr = try (chainl1 primExpr op)
+    <|> try primExpr where
     op = try (Ge <$ string ">=" <* spaces)
             <|> try (Le <$ string "<=" <* spaces)
             <|> try (Eq <$ string "==" <* spaces)
@@ -142,15 +150,26 @@ expr = try (chainl1 term op)
             <|> Bor <$ string "||" <* spaces
             <|> Xor <$ string "^" <* spaces
             <|> Mod <$ string "%" <* spaces
-    term = try inExpr
+
+primExpr :: Parser Expr
+primExpr = try inExpr
         <|> try (FunE <$> funcCall)
         <|> try intExpr
         <|> try charExpr
         <|> try varExpr
         <|> try (parend expr)
-        <|> try (Neg <$> (string "-" *> expr))
-        <|> try (No <$> (string "!" *> expr))
-        <|> try (Lno <$> (string "~" *> expr))
+
+unaryExpr :: Parser Expr
+unaryExpr = try (Neg <$> (string "-" *> primExpr))
+        <|> try (No <$> (string "!" *> primExpr))
+        <|> try (Lno <$> (string "~" *> primExpr))
+        <|> try (Dref <$> (string "*" *> primExpr))
+        <|> try (RefE <$> (string "&" *> var))
+
+expr :: Parser Expr
+expr = try binExpr
+    <|> try unaryExpr
+    <|> try primExpr
 
 -- statements --
 
@@ -160,7 +179,7 @@ statement = try outS <* spaces
         <|> try whileS <* spaces
         <|> try returnStat <* spaces
         <|> try assignStat <* spaces
-        <|> try varDeclStat <* spaces
+        <|> try declStat <* spaces
         <|> try (FuncCallS <$> funcCall)
         <|> try (Break <$ string "break" <* spaces <* char ';' <* spaces)
 
@@ -168,18 +187,44 @@ returnStat :: Parser Stat
 returnStat = ReturnS <$> (string "return" *> spaces *> expr <* spaces <* char ';')
 
 assignStat :: Parser Stat
-assignStat = AssignS <$> var <* spaces <*> (char '=' *> spaces *> expr <* char ';')
+assignStat = AssignS <$> expr <* spaces <*> (char '=' *> spaces *> expr <* char ';')
 
-varDeclStat :: Parser Stat
-varDeclStat = do
-    t <- cType
-    n <- var
-    a <- arr t
+varDecl :: Parser VarDecl
+varDecl = do
+    typ <- try (U32 <$ string "int" <* spaces)
+            <|> try (U8 <$ string "char" <* spaces)
+    ptrs <- many (spaces *> string "*" *> spaces)
+    v <- var
+    a <- arr typ
     spaces
-    char ';'
-    return $ VarDeclS a n where
-        arr t = try ( Arr <$> brackd intLiteral <*> arr t)
-            <|> return t
+    return $ VarDecl (ptr ptrs a) v where
+            arr t = try (Arr <$> brackd intLiteral <*> arr t)
+                <|> try (Arr 0 <$ string "[" <* spaces <* string "]" <*> arr t)
+                <|> return t
+            ptr (x:xs) t = ptr xs (Ptr t)
+            ptr [] t = t
+
+declStat :: Parser Stat
+declStat = do
+    v <- varDecl
+    spaces
+    case v of
+        (VarDecl (Arr _ _) _) -> try (arrDeclInit v)
+                                <|> try (arrDeclNoInit v)
+        _ -> try (varDeclInit v)
+            <|> try (varDeclNoInit v)
+
+varDeclInit :: VarDecl -> Parser Stat
+varDeclInit x = VarDeclS x <$> (string "=" *> spaces *> expr <* spaces <* string ";")
+
+varDeclNoInit:: VarDecl -> Parser Stat
+varDeclNoInit x = VarDeclS x (IntE 0) <$ string ";"
+
+arrDeclInit :: VarDecl -> Parser Stat
+arrDeclInit x = ArrDeclS x <$> braced (expr `sepBy` (char ',' <* spaces)) <* spaces <* string ";"
+
+arrDeclNoInit:: VarDecl -> Parser Stat
+arrDeclNoInit x = ArrDeclS x [] <$ string ";"
 
 ifElseS :: Parser Stat
 ifElseS = IfS <$> (string "if" *> spaces *> parend expr) <*> braced (many statement)
@@ -209,8 +254,7 @@ globDecl = do
             <|> return t
 
 funcDecl :: Parser ExtDecl
-funcDecl = FuncDecl <$> cType <*> identifier <*> parend (param `sepBy` (char ',' <* spaces)) <* spaces <*> braced (many statement) where
-    param = Param <$> cType <*> var <* spaces
+funcDecl = FuncDecl <$> cType <*> identifier <*> parend (varDecl `sepBy` (char ',' <* spaces)) <* spaces <*> braced (many statement)
 
 funcCall :: Parser FuncCall
 funcCall = FuncCall <$> identifier <*> parend (expr `sepBy ` (char ',' <* spaces))

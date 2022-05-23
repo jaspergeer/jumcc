@@ -1,2 +1,1 @@
-# JCC
-A compiler for a tiny subset of C, written in Haskell. Targets a simple RISC-style architecure specified [here](https://www.cs.tufts.edu/comp/40/docs/umasm.html) used to teach university students.
+# jumcc
