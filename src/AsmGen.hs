@@ -89,8 +89,7 @@ visitStat prog (AssignS (Dref addr) exp) = case visitExpr prog addr of
                                             ++ ["pop r4 off stack r2"]
                                             ++ ["pop r3 off stack r2"]
                                             ++ ["m[r0][r3] := r4"]) (stkSimPop (stkSimPop sim)) label
-visitStat prog (FuncCallS call) = case visitFuncCall prog call of
-    (AsmProg asm sim label) -> AsmProg asm (stkSimPop sim) label;
+visitStat prog (FuncCallS call) = visitFuncCall prog call
 visitStat prog@(AsmProg asm sim label) (WhileS cond body) = case visitExpr (AsmProg (asm ++ ["L" ++ show label ++ ":"]) sim (label + 1)) cond of
     (AsmProg asm1 sim1@(StackSim ((StkFrame sfid _ _):_)) label1) -> case visitStatList (AsmProg (asm1
                                                                                                 ++ ["pop r4 off stack r2"]
@@ -101,20 +100,9 @@ visitStat prog@(AsmProg asm sim label) (WhileS cond body) = case visitExpr (AsmP
                                                                                     ++ ["goto L" ++ show label]
                                                                                     ++ ["L" ++ show label1 ++ ":"]) (stkSimPopFrame sim2) label2
 
--- getAddress :: AsmProg -> Expr -> AsmProg
--- getAddress prog (Dref exp) = case visitExpr prog exp of
---     (AsmProg asm sim label) -> AsmProg asm (stkSimPush (stkSimPop sim) (Var ".addr", U32)) label
--- getAddress prog (VarE var exp) = case visitExpr prog exp of
---     (AsmProg asm sim label) -> case stkSimQuery sim var of
---         offset -> AsmProg (asm
---                             ++ ["r4 := m[r0][r2 + " ++ show offset ++ "]"]
---                             ++ ["pop r3 off stack r2"]
---                             ++ ["r4 := r4 + r3"]
---                             ++ ["push r4 on stack r2"]) (stkSimPush (stkSimPop sim) (Var ".addr", U32)) label
-
 visitFuncCall :: AsmProg -> FuncCall -> AsmProg
-visitFuncCall prog (FuncCall ident args) = case pushExprSeq prog args of
-    (AsmProg asm sim label) -> AsmProg (asm ++ ["goto F_" ++ ident ++ " linking r1"]) sim label
+visitFuncCall (AsmProg asm sim label) (FuncCall ident args) = case pushExprSeq (AsmProg asm (stkSimPushFrame sim (".call_" ++ ident)) label) args of
+    (AsmProg asm1 sim1 label1) -> AsmProg (asm1 ++ ["goto F_" ++ ident ++ " linking r1"]) (stkSimPopFrame sim1) label1
 
 pushExprSeq :: AsmProg -> [Expr] -> AsmProg
 pushExprSeq prog x = _pes prog (reverse x) where
