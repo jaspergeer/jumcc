@@ -35,7 +35,7 @@ visitExtDeclList prog (x:xs) = case visitExtDecl prog x of
     result -> visitExtDeclList result xs
 
 visitExtDecl :: AsmProg -> ExtDecl -> AsmProg
-visitExtDecl prog@(AsmProg asm sim label) (FuncDecl _ ident params body) = case stkSimPush (_sspa (stkSimPushFrame sim ident) params) (Var ".ret",U32) of
+visitExtDecl prog@(AsmProg asm sim label) (FuncDecl _ ident params body) = case stkSimPush (_sspa (stkSimPushFrame sim (".func_" ++ ident)) params) (Var ".ret",U32) of
     result -> case visitStatList (AsmProg (asm ++ ["F_" ++ ident ++ ":"] ++ ["push r1 on stack r2"]) result label) body of
         AsmProg asm1 sim1@(StackSim stk@((StkFrame _ (_:fs) size):_)) label1 -> AsmProg (asm1
                                                                                         ++ ["F_END_" ++ ident ++ ":"]
@@ -57,8 +57,8 @@ visitStatList prog (x:xs) = case visitStat prog x of
 
 visitStat :: AsmProg -> Stat -> AsmProg
 visitStat prog (ReturnS exp) = case visitExpr prog exp of
-    (AsmProg asm sim@(StackSim ((StkFrame sfid _ _):xs)) label) -> AsmProg (asm ++ ["pop r1 off stack r2"]
-                                                                                ++ ["goto F_END_" ++ sfid]) (stkSimPop sim) label
+    (AsmProg asm sim label) -> AsmProg (asm ++ ["pop r1 off stack r2"]
+                                                                                ++ ["goto F_END_" ++ getFuncName sim]) (stkSimPop sim) label
 visitStat prog (VarDeclS (VarDecl typ var) init) = case visitExpr prog init of
     (AsmProg asm sim label) -> AsmProg asm (stkSimPush (stkSimPop sim) (var, typ)) label
 visitStat prog (ArrDeclS (VarDecl (Arr size typ) var) []) = case pushExprSeq prog (replicate size (IntE 0)) of
@@ -68,13 +68,13 @@ visitStat prog (ArrDeclS (VarDecl typ var) init) = case pushExprSeq prog init of
     (AsmProg asm sim label) -> AsmProg (asm ++ ["r4 := r2"]
                                             ++ ["push r4 on stack r2"]) (stkSimPush sim (var,Ptr typ)) label
 visitStat prog (IfS cond body) = case visitExpr prog cond of
-    (AsmProg asm sim@(StackSim ((StkFrame sfid _ _):_)) label) -> case visitStatList (AsmProg (asm
-                                                                                                ++ ["pop r4 off stack r2"]
-                                                                                                ++ ["if (r4 == 0) goto L" ++ show label])
-                                                                                        (stkSimPushFrame (stkSimPop sim) sfid) (label + 1)) body of
-        AsmProg asm1 sim1@(StackSim ((StkFrame _ _ size):_)) label1 -> AsmProg (asm1
-                                                                                    ++ replicate size "pop stack r2"
-                                                                                    ++ ["L" ++ show label ++ ":"]) (stkSimPopFrame sim1) label1
+    (AsmProg asm sim label) -> case visitStatList (AsmProg (asm
+                                                                                             ++ ["pop r4 off stack r2"]
+                                                                                             ++ ["if (r4 == 0) goto L" ++ show label])
+                                                                                     (stkSimPushFrame (stkSimPop sim) ".if") (label + 1)) body of
+     AsmProg asm1 sim1@(StackSim ((StkFrame _ _ size):_)) label1 -> AsmProg (asm1
+                                                                                 ++ replicate size "pop stack r2"
+                                                                                 ++ ["L" ++ show label ++ ":"]) (stkSimPopFrame sim1) label1
 visitStat prog (Out exp) = case visitExpr prog exp of
     (AsmProg asm sim label) -> AsmProg (asm ++ ["pop r4 off stack r2"]
                                             ++ ["output r4"]) (stkSimPop sim) label
@@ -85,20 +85,25 @@ visitStat prog (AssignS (VarE var) exp) = case visitExpr prog exp of
                             ++ ["m[r0][r2 + " ++ show (stkSimQuery sim1 var) ++ "] := r4"]) sim1 label
 visitStat prog (AssignS (Dref addr) exp) = case visitExpr prog addr of
     prog1 -> case visitExpr prog1 exp of
-        (AsmProg asm sim label) -> AsmProg (asm 
+        (AsmProg asm sim label) -> AsmProg (asm
                                             ++ ["pop r4 off stack r2"]
                                             ++ ["pop r3 off stack r2"]
                                             ++ ["m[r0][r3] := r4"]) (stkSimPop (stkSimPop sim)) label
 visitStat prog (FuncCallS call) = visitFuncCall prog call
-visitStat prog@(AsmProg asm sim label) (WhileS cond body) = case visitExpr (AsmProg (asm ++ ["L" ++ show label ++ ":"]) sim (label + 1)) cond of
+visitStat prog@(AsmProg asm sim label) (WhileS cond body) = case visitExpr (AsmProg (asm ++ ["WHILE_" ++ show label ++ ":"]) sim (label + 1)) cond of
     (AsmProg asm1 sim1@(StackSim ((StkFrame sfid _ _):_)) label1) -> case visitStatList (AsmProg (asm1
                                                                                                 ++ ["pop r4 off stack r2"]
-                                                                                                ++ ["if (r4 == 0) goto L" ++ show label1])
-                                                                                        (stkSimPushFrame (stkSimPop sim1) sfid) (label1 + 1)) body of
+                                                                                                ++ ["if (r4 == 0) goto WHILE_END_" ++ show label])
+                                                                                        (stkSimPushFrame (stkSimPop sim1) (".while_" ++ show label)) label1) body of
         AsmProg asm2 sim2@(StackSim ((StkFrame _ _ size):_)) label2 -> AsmProg (asm2
                                                                                     ++ replicate size "pop stack r2"
-                                                                                    ++ ["goto L" ++ show label]
-                                                                                    ++ ["L" ++ show label1 ++ ":"]) (stkSimPopFrame sim2) label2
+                                                                                    ++ ["goto WHILE_" ++ show label]
+                                                                                    ++ ["WHILE_END_" ++ show label ++ ":"]) (stkSimPopFrame sim2) label2
+visitStat (AsmProg asm sim@(StackSim stk@((StkFrame _ _ size):_)) label) Break = AsmProg (asm
+                                                                                        ++ replicate (_sizewhile stk) "pop stack r2"
+                                                                                        ++ ["goto WHILE_END_" ++ getWhileName sim]) sim label where
+                                                                                            _sizewhile ((StkFrame ('.':'w':'h':'i':'l':'e':'_':_) _ size):_) = size
+                                                                                            _sizewhile ((StkFrame _ _ size):stk) = _sizewhile stk + size
 
 visitFuncCall :: AsmProg -> FuncCall -> AsmProg
 visitFuncCall (AsmProg asm sim label) (FuncCall ident args) = case pushExprSeq (AsmProg asm (stkSimPushFrame sim (".call_" ++ ident)) label) args of
@@ -343,3 +348,13 @@ dref :: CType -> CType
 dref (Ptr x) = x
 dref (Arr _ x) = x
 dref x = error ("type " ++ show x ++ " cannot be dereferenced")
+
+getFuncName :: StackSim -> String
+getFuncName (StackSim ((StkFrame ('.':'f':'u':'n':'c':'_':ident) _ _):stk)) = ident
+getFuncName (StackSim (_:stk)) = getFuncName $ StackSim stk
+getFuncName (StackSim _) = error "can't find function name: stack empty"
+
+getWhileName :: StackSim -> String
+getWhileName (StackSim ((StkFrame ('.':'w':'h':'i':'l':'e':'_':ident) _ _):stk)) = ident
+getWhileName (StackSim (_:stk)) = getWhileName $ StackSim stk
+getWhileName (StackSim _) = error "can't find while loop name: stack empty"
