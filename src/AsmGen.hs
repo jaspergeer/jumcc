@@ -62,9 +62,11 @@ visitStat prog (ReturnS exp) = case visitExpr prog exp of
 visitStat prog (VarDeclS (VarDecl typ var) init) = case visitExpr prog init of
     (AsmProg asm sim label) -> AsmProg asm (stkSimPush (stkSimPop sim) (var, typ)) label
 visitStat prog (ArrDeclS (VarDecl (Arr size typ) var) []) = case pushExprSeq prog (replicate size (IntE 0)) of
-    (AsmProg asm sim label) -> AsmProg (asm ++ ["push r2 on stack r2"]) (stkSimPush sim (var,Ptr typ)) label
+    (AsmProg asm sim label) -> AsmProg (asm ++ ["r4 := r2"]
+                                            ++ ["push r4 on stack r2"]) (stkSimPush sim (var,Ptr typ)) label
 visitStat prog (ArrDeclS (VarDecl typ var) init) = case pushExprSeq prog init of
-    (AsmProg asm sim label) -> AsmProg (asm ++ ["push r2 on stack r2"]) (stkSimPush sim (var,Ptr typ)) label
+    (AsmProg asm sim label) -> AsmProg (asm ++ ["r4 := r2"]
+                                            ++ ["push r4 on stack r2"]) (stkSimPush sim (var,Ptr typ)) label
 visitStat prog (IfS cond body) = case visitExpr prog cond of
     (AsmProg asm sim@(StackSim ((StkFrame sfid _ _):_)) label) -> case visitStatList (AsmProg (asm
                                                                                                 ++ ["pop r4 off stack r2"]
@@ -76,18 +78,19 @@ visitStat prog (IfS cond body) = case visitExpr prog cond of
 visitStat prog (Out exp) = case visitExpr prog exp of
     (AsmProg asm sim label) -> AsmProg (asm ++ ["pop r4 off stack r2"]
                                             ++ ["output r4"]) (stkSimPop sim) label
-visitStat prog (AssignS (VarE var (IntE 0)) exp) = case visitExpr prog exp of
+visitStat prog (AssignS (VarE var) exp) = case visitExpr prog exp of
     (AsmProg asm sim label) -> case stkSimPop sim of
         sim1 -> AsmProg (asm
                             ++ ["pop r4 off stack r2"]
                             ++ ["m[r0][r2 + " ++ show (stkSimQuery sim1 var) ++ "] := r4"]) sim1 label
-visitStat prog (AssignS loc exp) = case getAddress prog loc of
+visitStat prog (AssignS (Dref addr) exp) = case visitExpr prog addr of
     prog1 -> case visitExpr prog1 exp of
         (AsmProg asm sim label) -> AsmProg (asm 
                                             ++ ["pop r4 off stack r2"]
                                             ++ ["pop r3 off stack r2"]
                                             ++ ["m[r0][r3] := r4"]) (stkSimPop (stkSimPop sim)) label
-visitStat prog (FuncCallS call) = visitFuncCall prog call
+visitStat prog (FuncCallS call) = case visitFuncCall prog call of
+    (AsmProg asm sim label) -> AsmProg asm (stkSimPop sim) label;
 visitStat prog@(AsmProg asm sim label) (WhileS cond body) = case visitExpr (AsmProg (asm ++ ["L" ++ show label ++ ":"]) sim (label + 1)) cond of
     (AsmProg asm1 sim1@(StackSim ((StkFrame sfid _ _):_)) label1) -> case visitStatList (AsmProg (asm1
                                                                                                 ++ ["pop r4 off stack r2"]
@@ -98,16 +101,16 @@ visitStat prog@(AsmProg asm sim label) (WhileS cond body) = case visitExpr (AsmP
                                                                                     ++ ["goto L" ++ show label]
                                                                                     ++ ["L" ++ show label1 ++ ":"]) (stkSimPopFrame sim2) label2
 
-getAddress :: AsmProg -> Expr -> AsmProg
-getAddress prog (Dref exp) = case visitExpr prog exp of
-    (AsmProg asm sim label) -> AsmProg asm (stkSimPush (stkSimPop sim) (Var ".addr", U32)) label
-getAddress prog (VarE var exp) = case visitExpr prog exp of
-    (AsmProg asm sim label) -> case stkSimQuery sim var of
-        offset -> AsmProg (asm
-                            ++ ["r4 := m[r0][r2 + " ++ show offset ++ "]"]
-                            ++ ["pop r3 off stack r2"]
-                            ++ ["r4 := r4 + r3"]
-                            ++ ["push r4 on stack r2"]) (stkSimPush (stkSimPop sim) (Var ".addr", U32)) label
+-- getAddress :: AsmProg -> Expr -> AsmProg
+-- getAddress prog (Dref exp) = case visitExpr prog exp of
+--     (AsmProg asm sim label) -> AsmProg asm (stkSimPush (stkSimPop sim) (Var ".addr", U32)) label
+-- getAddress prog (VarE var exp) = case visitExpr prog exp of
+--     (AsmProg asm sim label) -> case stkSimQuery sim var of
+--         offset -> AsmProg (asm
+--                             ++ ["r4 := m[r0][r2 + " ++ show offset ++ "]"]
+--                             ++ ["pop r3 off stack r2"]
+--                             ++ ["r4 := r4 + r3"]
+--                             ++ ["push r4 on stack r2"]) (stkSimPush (stkSimPop sim) (Var ".addr", U32)) label
 
 visitFuncCall :: AsmProg -> FuncCall -> AsmProg
 visitFuncCall prog (FuncCall ident args) = case pushExprSeq prog args of
@@ -127,16 +130,10 @@ _vexpr :: AsmProg -> Expr -> AsmProg
 -- stack-push operations --
 _vexpr (AsmProg asm sim label) (IntE x) = AsmProg (asm ++ ["push " ++ show x ++" on stack r2"]) (stkSimPush sim (Var ".int", U32)) label
 _vexpr (AsmProg asm sim label) (CharE x) = AsmProg (asm ++ ["push " ++ show (ord x) ++ " on stack r2"]) (stkSimPush sim (Var ".char", U8)) label
-_vexpr (AsmProg asm sim label) (VarE var (IntE 0)) = case  AsmProg (asm
+_vexpr (AsmProg asm sim label) (VarE var) = case  AsmProg (asm
                                                     ++ ["r4 := m[r0][" ++ "r2 + " ++ show (stkSimQuery sim var) ++ "]"])
                                                     (stkSimPush sim (Var ".var", stkSimQueryType sim var)) label of
                                                         prog -> enforceTypeSize prog
-_vexpr prog exp@(VarE var _) = case getAddress prog exp of
-    (AsmProg asm sim label) -> case AsmProg (asm
-                                        ++ ["pop r4 off stack r2"]
-                                        ++ ["r4 := m[r0][r4]"])
-                                        (stkSimPush (stkSimPop sim) (Var ".val", dref (stkSimQueryType sim var))) label of
-                                            prog -> enforceTypeSize prog
 _vexpr (AsmProg asm sim label) In = AsmProg (asm
                                                 ++ ["r4 := input()"]
                                                 ++ ["push r4 on stack r2"]) (stkSimPush sim (Var ".in", U8)) label
@@ -144,11 +141,13 @@ _vexpr prog (FunE call) = case visitFuncCall prog call of
     (AsmProg asm sim label) -> AsmProg (asm ++ ["push r1 on stack r2"]) (stkSimPush sim (Var ".func", U32)) label -- TODO symbol table?
 -- unary operations --
 _vexpr prog (Neg x) = case _vexpr prog x of
-    (AsmProg asm sim label) -> case AsmProg (asm ++ ["pop r4 off stack r2"]
+    (AsmProg asm sim label) -> case AsmProg (asm
+                                            ++ ["pop r4 off stack r2"]
                                             ++ ["r4 := -r4"]) sim label of
                                                 prog -> enforceTypeSize prog
 _vexpr prog (Lno x) = case _vexpr prog x of
-    (AsmProg asm sim label) -> case AsmProg (asm ++ ["pop r4 off stack r2"]
+    (AsmProg asm sim label) -> case AsmProg (asm
+                                            ++ ["pop r4 off stack r2"]
                                             ++ ["r4 := ~r4"]) sim label of
                                                 prog -> enforceTypeSize prog
 _vexpr prog (No x) = case _vexpr prog x of
@@ -159,6 +158,13 @@ _vexpr prog (No x) = case _vexpr prog x of
                                             ++ ["L" ++ show label ++ ":"]
                                             ++ ["push 1 on stack r2"]
                                             ++ ["L" ++ show (label + 1) ++ ":"]) sim (label + 2)
+_vexpr prog (Dref addr) = case _vexpr prog addr of
+    (AsmProg asm sim label) -> case AsmProg (asm
+                                        ++ ["pop r4 off stack r2"]
+                                        ++ ["r4 := m[r0][r4]"])
+                                        (stkSimPush (stkSimPop sim) (Var ".val", dref (stkSimPeekType sim))) label of
+                                            prog1 -> enforceTypeSize prog1
+
 -- relational operations --
 _vexpr prog (Le x y) = case _vexpr prog x of
     prog1 -> case _vexpr prog1 y of
