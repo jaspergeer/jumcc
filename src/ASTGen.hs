@@ -10,6 +10,8 @@ cIdentChar      = cIdentBegin ++ ['0'..'9']
 cKeywords       = ["if","while","return","else"]
 cTypes          = ["int", "char"]
 
+strLitChar = ' ':'!' : ['#'..'&'] ++ ['('..'~']
+
 -- AST structure --
 
 newtype Program = Program [ExtDecl] deriving Show
@@ -28,7 +30,7 @@ data Stat = ReturnS Expr
         deriving Show
 data Expr = IntE Int
         | CharE Char
-        | VarE Var Expr
+        | VarE Var
         | RefE Var
         | Neg Expr
         | Lno Expr
@@ -55,7 +57,6 @@ data Expr = IntE Int
         | In
         deriving Show
 newtype Var = Var String deriving (Show, Eq)
-newtype StrLit = StrLit String deriving Show
 data CType = U32
         | U8
         | Ptr CType
@@ -93,11 +94,20 @@ dquoted x = between (char '"') (char '"') x <* spaces
 intLiteral :: Parser Int
 intLiteral = read <$> many1 digit <* spaces
 
-strLiteral :: Parser StrLit
-strLiteral = StrLit <$> dquoted (many anyChar ) <* spaces
+strLiteral :: Parser [Expr]
+strLiteral =  do
+        s <- dquoted (many (CharE <$> cChar)) <* spaces
+        return (s ++ [CharE '\0'])
 
 charLiteral :: Parser Char
-charLiteral = squoted anyChar <* spaces
+charLiteral = squoted cChar
+
+cChar :: Parser Char
+cChar = try ('\0' <$ string "\\0")
+        <|> try ('\n' <$ string "\\n")
+        <|> try ('"' <$ string "\\\"")
+        <|> try ('\'' <$ string "\'")
+        <|> try (oneOf strLitChar)
 
 identifier :: Parser String
 identifier = many1 (oneOf cIdentChar) <* spaces
@@ -122,18 +132,13 @@ charExpr :: Parser Expr
 charExpr = CharE <$> charLiteral <* spaces
 
 varExpr :: Parser Expr
-varExpr = try (do
-    v <- var
-    dims <- spaces *> brackd expr
-    return $ VarE v dims)
-    <|> (flip VarE (IntE 0) <$> var)
+varExpr = VarE <$> var
 
 inExpr :: Parser Expr
 inExpr = In <$ string "inb()"
 
 binExpr :: Parser Expr
-binExpr = try (chainl1 primExpr op)
-    <|> try primExpr where
+binExpr = try (chainl1 primExpr op) where
     op = try (Ge <$ string ">=" <* spaces)
             <|> try (Le <$ string "<=" <* spaces)
             <|> try (Eq <$ string "==" <* spaces)
@@ -166,10 +171,17 @@ unaryExpr = try (Neg <$> (string "-" *> primExpr))
         <|> try (Dref <$> (string "*" *> primExpr))
         <|> try (RefE <$> (string "&" *> var))
 
+postfixExpr :: Parser Expr
+postfixExpr = try (do
+        l <- primExpr
+        r <- brackd expr
+        return $ Dref (Add l r))
+
 expr :: Parser Expr
-expr = try binExpr
-    <|> try unaryExpr
-    <|> try primExpr
+expr = try postfixExpr
+        <|> try binExpr
+        <|> try unaryExpr
+        <|> try primExpr
 
 -- statements --
 
@@ -180,7 +192,7 @@ statement = try outS <* spaces
         <|> try returnStat <* spaces
         <|> try assignStat <* spaces
         <|> try declStat <* spaces
-        <|> try (FuncCallS <$> funcCall)
+        <|> try (FuncCallS <$> funcCall <* spaces <* char ';' <* spaces)
         <|> try (Break <$ string "break" <* spaces <* char ';' <* spaces)
 
 returnStat :: Parser Stat
@@ -218,22 +230,22 @@ varDeclInit :: VarDecl -> Parser Stat
 varDeclInit x = VarDeclS x <$> (string "=" *> spaces *> expr <* spaces <* string ";")
 
 varDeclNoInit:: VarDecl -> Parser Stat
-varDeclNoInit x = VarDeclS x (IntE 0) <$ string ";"
+varDeclNoInit x = VarDeclS x (IntE 0) <$ spaces <* string ";"
 
 arrDeclInit :: VarDecl -> Parser Stat
-arrDeclInit x = ArrDeclS x <$> braced (expr `sepBy` (char ',' <* spaces)) <* spaces <* string ";"
+arrDeclInit x = try (ArrDeclS x <$> (string "=" *> spaces *> strLiteral) <* spaces <* string ";")
+        <|> try (ArrDeclS x <$> (string "=" *> spaces *> braced (expr `sepBy` (char ',' <* spaces)) <* spaces <* string ";"))
 
 arrDeclNoInit:: VarDecl -> Parser Stat
-arrDeclNoInit x = ArrDeclS x [] <$ string ";"
+arrDeclNoInit x = ArrDeclS x [] <$ spaces <* string ";"
 
 ifElseS :: Parser Stat
-ifElseS = IfS <$> (string "if" *> spaces *> parend expr) <*> braced (many statement)
+ifElseS = IfS <$> (string "if" *> spaces *> parend expr <* spaces) <*> braced (many statement)
 
 whileS :: Parser Stat
-whileS = WhileS <$> (string "while" *> spaces *> parend expr) <*> braced (many statement)
-
+whileS = WhileS <$> (string "while" *> spaces *> parend expr <* spaces) <*> braced (many statement)
 outS :: Parser Stat
-outS = Out <$> (string "outb" *> parend expr <* spaces <* char ';')
+outS = Out <$> (string "outb" *> spaces *> parend expr <* spaces <* char ';')
 
 -- functions --
 
