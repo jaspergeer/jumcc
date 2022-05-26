@@ -59,10 +59,10 @@ visitExtDeclList prog (x:xs) = case visitExtDecl prog x of
 -- generate asm for an external declaration
 visitExtDecl :: AsmProg -> ExtDecl -> AsmProg
 visitExtDecl prog@(AsmProg pname asm sim label) (FuncDecl _ ident params body) = case stkSimPush (_sspa (stkSimPushFrame sim (".func_" ++ ident)) params) (Var ".ret",U32) of
-    result -> case visitStatList (AsmProg pname (asm ++ (if ident == "main" then ["F_" ++ ident ++ ":"] else [pname ++ "F_" ++ ident ++ ":"])
+    result -> case visitStatList (AsmProg pname (asm ++ ["F_" ++ ident ++ ":"]
                                                 ++ ["push r1 on stack r2"]) result label) body of
         AsmProg pname asm1 sim1@(StackSim stk@((StkFrame _ (_:fs) size):_)) label1 -> AsmProg pname (asm1
-                                                                                        ++ [pname ++ "F_END_" ++ ident ++ ":"]
+                                                                                        ++ ["F_END_" ++ ident ++ ":"]
                                                                                         ++ replicate (size - (length params + 1)) "pop stack r2"
                                                                                         ++ ["pop r4 off stack r2"]
                                                                                         ++ replicate (length params) "pop stack r2"
@@ -83,7 +83,7 @@ visitStatList prog (x:xs) = case visitStat prog x of
 visitStat :: AsmProg -> Stat -> AsmProg
 visitStat prog (ReturnS exp) = case visitExpr prog exp of
     (AsmProg pname asm sim label) -> AsmProg pname (asm ++ ["pop r1 off stack r2"]
-                                                                                ++ ["goto " ++ pname ++ "F_END_" ++ getFuncName sim]) (stkSimPop sim) label
+                                                                                ++ ["goto F_END_" ++ getFuncName sim]) (stkSimPop sim) label
 visitStat prog (VarDeclS (VarDecl typ var) init) = case visitExpr prog init of
     (AsmProg pname asm sim label) -> AsmProg pname asm (stkSimPush (stkSimPop sim) (var, typ)) label
 visitStat prog (ArrDeclS (VarDecl (Arr size typ) var) []) = case pushExprSeq prog (replicate size (IntE 0)) of
@@ -133,7 +133,7 @@ visitStat (AsmProg pname asm sim@(StackSim stk@((StkFrame _ _ size):_)) label) B
 -- geneate asm for a function call
 visitFuncCall :: AsmProg -> FuncCall -> AsmProg
 visitFuncCall (AsmProg pname asm sim label) (FuncCall ident args) = case pushExprSeq (AsmProg pname asm (stkSimPushFrame sim (".call_" ++ ident)) label) args of
-    (AsmProg pname asm1 sim1 label1) -> AsmProg pname (asm1 ++ if ident == "main" then ["goto F_" ++ ident ++ " linking r1"] else ["goto " ++ pname ++ "F_" ++ ident ++ " linking r1"]) (stkSimPopFrame sim1) label1
+    (AsmProg pname asm1 sim1 label1) -> AsmProg pname (asm1 ++ ["goto F_" ++ ident ++ " linking r1"]) (stkSimPopFrame sim1) label1
 
 -- generate asm for a sequence of expressions, results are pushed onto the stack in reverse order
 pushExprSeq :: AsmProg -> [Expr] -> AsmProg
