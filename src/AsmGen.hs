@@ -1,10 +1,9 @@
-{-# OPTIONS_GHC -Wno-incomplete-patterns #-}
 module AsmGen where
 import ASTGen
     ( CType(..),
       Var(Var),
       Expr(Band, IntE, CharE, VarE, In, FunE, Neg, Lno, No, Dref, Le, Lt,
-           Ge, Gt, Eq, Ne, Or, And, Sub, Add, Div, Mul, Bor, Xor, Mod, Str),
+           Ge, Gt, Eq, Ne, Or, And, Sub, Add, Div, Mul, Bor, Xor, Mod),
       Stat(..),
       VarDecl(..),
       FuncCall(..),
@@ -57,7 +56,7 @@ visitExtDeclList prog (x:xs) = case visitExtDecl prog x of
 
 -- generate asm for an external declaration
 visitExtDecl :: AsmProg -> ExtDecl -> AsmProg
-visitExtDecl prog@(AsmProg asm sim label) (FuncDecl _ ident params body) = case stkSimPush (pushArgs (stkSimPushFrame sim (".func_" ++ ident)) params) (Var ".ret",U32) of
+visitExtDecl prog@(AsmProg asm sim label) (FuncDecl _ ident params body) = case stkSimPush (_sspa (stkSimPushFrame sim (".func_" ++ ident)) params) (Var ".ret",U32) of
     result -> case visitStatList (AsmProg (asm ++ ["F_" ++ ident ++ ":"] ++ ["push r1 on stack r2"]) result label) body of
         AsmProg asm1 sim1@(StackSim stk@((StkFrame _ (_:fs) size):_)) label1 -> AsmProg (asm1
                                                                                         ++ ["F_END_" ++ ident ++ ":"]
@@ -67,9 +66,9 @@ visitExtDecl prog@(AsmProg asm sim label) (FuncDecl _ ident params body) = case 
                                                                                         ++ ["goto r4"] ) (stkSimPopFrame sim1) label1
 
 -- push sequence of arguments onto stack simulation
-pushArgs :: StackSim -> [VarDecl] -> StackSim
-pushArgs sim ((VarDecl t v):ps) = stkSimPush (pushArgs sim ps) (v,t)
-pushArgs sim [] = sim
+_sspa :: StackSim -> [VarDecl] -> StackSim
+_sspa sim ((VarDecl t v):ps) = stkSimPush (_sspa sim ps) (v,t)
+_sspa sim [] = sim
 
 -- generate asm for a list of statements
 visitStatList :: AsmProg -> [Stat] -> AsmProg
@@ -159,10 +158,7 @@ _vexpr (AsmProg asm sim label) In = AsmProg (asm
                                                 ++ ["r4 := input()"]
                                                 ++ ["push r4 on stack r2"]) (stkSimPush sim (Var ".in", U8)) label
 _vexpr prog (FunE call) = case visitFuncCall prog call of
-    (AsmProg asm sim label) -> AsmProg (asm ++ ["push r1 on stack r2"]) (stkSimPush sim (Var ".func", U32)) label
-_vexpr prog (Str chars) = case pushExprSeq prog chars of
-    (AsmProg asm sim label) -> AsmProg (asm ++ ["r4 := r2"]
-                                            ++ ["push r4 on stack r2"]) (stkSimPush sim (Var ".str", Ptr U8)) label
+    (AsmProg asm sim label) -> AsmProg (asm ++ ["push r1 on stack r2"]) (stkSimPush sim (Var ".func", U32)) label -- TODO symbol table?
 -- unary operations --
 _vexpr prog (Neg x) = case _vexpr prog x of
     (AsmProg asm sim label) -> case AsmProg (asm
