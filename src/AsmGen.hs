@@ -1,4 +1,3 @@
-{-# OPTIONS_GHC -Wno-incomplete-patterns #-}
 module AsmGen where
 import ASTGen
     ( CType(..),
