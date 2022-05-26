@@ -49,7 +49,7 @@ visitProgram (Program extdecls) pname = case visitExtDeclList (AsmProg pname
                                          "r2 := callstack",
                                          ".section text"]
                                             (stkSimPushFrame stkSimEmpty ".global") 0) extdecls of
-                                                (AsmProg pname asm sim label) -> return $ AsmProg pname (".data" : asm) sim label
+                                                (AsmProg pname asm sim label) -> return $ AsmProg pname (".section data" : asm) sim label
 
 visitExtDeclList :: AsmProg -> [ExtDecl] -> AsmProg
 visitExtDeclList prog [] = prog
@@ -165,7 +165,7 @@ _vexpr prog (FunE call) = case visitFuncCall prog call of
 _vexpr (AsmProg pname asm sim label) (Str str) = AsmProg pname ([pname ++ "STR_" ++ show label ++ ":"]
                                                                 ++ makeStrLit str
                                                                 ++ asm
-                                                                ++ ["push " ++ pname ++ "STR_" ++ show label ++ "on stack r2"])
+                                                                ++ ["push " ++ pname ++ "STR_" ++ show label ++ " on stack r2"])
                                                                 (stkSimPush sim (Var ".str", Ptr U8)) (label + 1)
 -- unary operations --
 _vexpr prog (Neg x) = case _vexpr prog x of
