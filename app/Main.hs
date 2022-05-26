@@ -33,8 +33,8 @@ main = do
         _ -> putStrLn "Usage: jumcc [-o OUT-FILE] IN-FILE"
 
 compile :: String -> String -> Either ParseError AsmProg
-compile x pname = do
-    ast <- parse program "" x
+compile pname text = do
+    ast <- parse program "" text
     visitProgram ast pname
 
 printAsm :: AsmProg -> String -> IO()
