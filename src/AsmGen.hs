@@ -4,7 +4,7 @@ import ASTGen
     ( CType(..),
       Var(Var),
       Expr(Band, IntE, CharE, VarE, In, FunE, Neg, Lno, No, Dref, Le, Lt,
-           Ge, Gt, Eq, Ne, Or, And, Sub, Add, Div, Mul, Bor, Xor, Mod, Str),
+           Ge, Gt, Eq, Ne, Or, And, Sub, Add, Div, Mul, Bor, Xor, Mod, Str, RefE),
       Stat(..),
       VarDecl(..),
       FuncCall(..),
@@ -49,7 +49,7 @@ visitProgram (Program extdecls) pname = case visitExtDeclList (AsmProg pname
                                          "r2 := callstack",
                                          ".section text"]
                                             (stkSimPushFrame stkSimEmpty ".global") 0) extdecls of
-                                                (AsmProg pname asm sim label) -> return $ AsmProg pname (".section data" : asm) sim label
+                                                (AsmProg pname asm sim label) -> return $ AsmProg pname (".section rodata" : asm) sim label
 
 visitExtDeclList :: AsmProg -> [ExtDecl] -> AsmProg
 visitExtDeclList prog [] = prog
@@ -168,6 +168,8 @@ _vexpr (AsmProg pname asm sim label) (Str str) = AsmProg pname ([pname ++ "STR_"
                                                                 ++ ["push " ++ pname ++ "STR_" ++ show label ++ " on stack r2"])
                                                                 (stkSimPush sim (Var ".str", Ptr U8)) (label + 1)
 -- unary operations --
+_vexpr (AsmProg pname asm sim label) (RefE var) = AsmProg pname (asm ++ ["r4 := r2 + " ++ show (stkSimQuery sim var)]
+                                                                        ++ ["push r4 on stack r2"]) (stkSimPush sim (Var ".ref", Ptr (stkSimQueryType sim var))) label
 _vexpr prog (Neg x) = case _vexpr prog x of
     (AsmProg pname asm sim label) -> case AsmProg pname (asm
                                             ++ ["pop r4 off stack r2"]

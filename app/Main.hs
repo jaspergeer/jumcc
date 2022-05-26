@@ -1,10 +1,10 @@
 module Main where
-import ASTGen
-import AsmGen
-import StackSim
+import ASTGen ( program )
+import AsmGen ( visitProgram, AsmProg(..) )
+import StackSim ()
 import Text.Parsec.String (Parser)
-import Text.Parsec.Char
-import Text.Parsec
+import Text.Parsec.Char ()
+import Text.Parsec ( ParseError, parse )
 import System.Environment (getArgs)
 import System.IO (openFile, IOMode(ReadMode), hGetContents)
 import Text.Parsec.Error (errorMessages, messageString)
@@ -27,7 +27,7 @@ main = do
                 file <- openFile src ReadMode
                 text <- hGetContents file
                 case compile (reverse xs) (remComments "" text) of
-                    Right x -> printAsm x "out.ums"
+                    Right x -> printAsm x (reverse xs ++ ".ums")
                     Left x -> print x
             _ -> error "source files should have suffix .umc"
         _ -> putStrLn "Usage: jumcc [-o OUT-FILE] IN-FILE"

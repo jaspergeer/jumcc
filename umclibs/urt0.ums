@@ -1,9 +1,0 @@
-.section init
-    .zero r0
-    .temps r5,r6,r7
-    r0 := 0
-    r2 := callstack
-
-.section data
-    .space 100000
-    callstack:

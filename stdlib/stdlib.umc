@@ -1,0 +1,21 @@
+int printf(char *str) {
+    while((*str) != '\0') {
+        outb(*str);
+        str = str + 1;
+    }
+    return 0;
+}
+
+int gets(char *str, int size) {
+    int ct = 0;
+    while (ct < (size - 1)) {
+    	char in = inb();
+    	if (in == 10) {
+    	    break;
+    	}
+    	str[ct] = in;
+        ct = ct + 1;
+    }
+    str[ct] = '\0';
+    return 0;
+}
