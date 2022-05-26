@@ -89,7 +89,7 @@ visitStat prog (VarDeclS (VarDecl typ var) init) = case visitExpr prog init of
 visitStat prog (ArrDeclS (VarDecl (Arr size typ) var) []) = case pushExprSeq prog (replicate size (IntE 0)) of
     (AsmProg pname asm sim label) -> AsmProg pname (asm ++ ["r4 := r2"]
                                             ++ ["push r4 on stack r2"]) (stkSimPush sim (var,Ptr typ)) label
-visitStat prog (ArrDeclS (VarDecl typ var) init) = case pushExprSeq prog init of
+visitStat prog (ArrDeclS (VarDecl (Arr size typ) var) init) = case pushExprSeq prog (init ++ replicate (length init - size) (IntE 0)) of
     (AsmProg pname asm sim label) -> AsmProg pname (asm ++ ["r4 := r2"]
                                             ++ ["push r4 on stack r2"]) (stkSimPush sim (var,Ptr typ)) label
 visitStat prog (IfS cond body) = case visitExpr prog cond of
