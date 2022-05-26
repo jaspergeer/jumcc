@@ -1,0 +1,11 @@
+int main() {
+    outb(gcd(120, 120));
+    return 0;
+}
+
+int gcd(int a, int b) {
+    if (a == 0) {
+        return b;
+    }
+    return gcd(b % a, a);
+}
