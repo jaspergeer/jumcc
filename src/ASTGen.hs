@@ -73,7 +73,7 @@ data Expr = IntE Int
         | Bor Expr Expr
         | Xor Expr Expr
         | Mod Expr Expr
-        | Arrset [Expr]
+        | Str String
         | In
         deriving Show
 newtype Var = Var String deriving (Show, Eq)
