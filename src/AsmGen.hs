@@ -1,24 +1,45 @@
 {-# OPTIONS_GHC -Wno-incomplete-patterns #-}
 module AsmGen where
 import ASTGen
+    ( CType(..),
+      Var(Var),
+      Expr(Band, IntE, CharE, VarE, In, FunE, Neg, Lno, No, Dref, Le, Lt,
+           Ge, Gt, Eq, Ne, Or, And, Sub, Add, Div, Mul, Bor, Xor, Mod),
+      Stat(..),
+      VarDecl(..),
+      FuncCall(..),
+      ExtDecl(..),
+      Program(..) )
 import StackSim
-import GHC.Char
+    ( StackSim(..),
+      StkFrame(StkFrame),
+      stkSimEmpty,
+      stkSimQuery,
+      stkSimQueryType,
+      stkSimPeekType,
+      stkSimPushFrame,
+      stkSimPopFrame,
+      stkSimPush,
+      stkSimPop )
+import GHC.Char ()
 import Data.Char (ord)
-import Text.Parsec
+import Text.Parsec ( ParseError )
 
--- Function Labels - F_(name)
--- Other Labels - L(number)
+-- Label Convention --
+-- Function Labels - F_(identifier), F_END_(identifier)
+-- Loop Labels - WHILE_(integer), WHILE_END_(integer)
+-- Other Labels - L_(integer)
 
--- === Register Conventions === --
+-- Register Convention --
 -- r0 - zero register
 -- r1 - return address/return value
 -- r2 - stack pointer
--- r3 - binop left
--- r4 - binop right/result
+-- r3,r4 - volatiles
 -- r5,r6,r7 - temps
 
 data AsmProg = AsmProg [String] StackSim Int deriving Show
 
+-- generate asm for a program
 visitProgram :: Program -> Either ParseError AsmProg
 visitProgram (Program extdecls) = return $ visitExtDeclList (AsmProg
                                         [".section init",
@@ -34,6 +55,7 @@ visitExtDeclList prog [] = prog
 visitExtDeclList prog (x:xs) = case visitExtDecl prog x of
     result -> visitExtDeclList result xs
 
+-- generate asm for an external declaration
 visitExtDecl :: AsmProg -> ExtDecl -> AsmProg
 visitExtDecl prog@(AsmProg asm sim label) (FuncDecl _ ident params body) = case stkSimPush (_sspa (stkSimPushFrame sim (".func_" ++ ident)) params) (Var ".ret",U32) of
     result -> case visitStatList (AsmProg (asm ++ ["F_" ++ ident ++ ":"] ++ ["push r1 on stack r2"]) result label) body of
@@ -43,18 +65,19 @@ visitExtDecl prog@(AsmProg asm sim label) (FuncDecl _ ident params body) = case 
                                                                                         ++ ["pop r4 off stack r2"]
                                                                                         ++ replicate (length params) "pop stack r2"
                                                                                         ++ ["goto r4"] ) (stkSimPopFrame sim1) label1
-visitExtDecl (AsmProg asm sim label) (GlobDecl typ var) = AsmProg asm (stkSimPush sim (var,typ)) label
 
--- push args onto stack sim --
+-- push sequence of arguments onto stack simulation
 _sspa :: StackSim -> [VarDecl] -> StackSim
 _sspa sim ((VarDecl t v):ps) = stkSimPush (_sspa sim ps) (v,t)
 _sspa sim [] = sim
 
+-- generate asm for a list of statements
 visitStatList :: AsmProg -> [Stat] -> AsmProg
 visitStatList prog [] = prog
 visitStatList prog (x:xs) = case visitStat prog x of
     result -> visitStatList result xs
 
+-- generate asm for a statement
 visitStat :: AsmProg -> Stat -> AsmProg
 visitStat prog (ReturnS exp) = case visitExpr prog exp of
     (AsmProg asm sim label) -> AsmProg (asm ++ ["pop r1 off stack r2"]
@@ -105,22 +128,27 @@ visitStat (AsmProg asm sim@(StackSim stk@((StkFrame _ _ size):_)) label) Break =
                                                                                             _sizewhile ((StkFrame ('.':'w':'h':'i':'l':'e':'_':_) _ size):_) = size
                                                                                             _sizewhile ((StkFrame _ _ size):stk) = _sizewhile stk + size
 
+-- geneate asm for a function call
 visitFuncCall :: AsmProg -> FuncCall -> AsmProg
 visitFuncCall (AsmProg asm sim label) (FuncCall ident args) = case pushExprSeq (AsmProg asm (stkSimPushFrame sim (".call_" ++ ident)) label) args of
     (AsmProg asm1 sim1 label1) -> AsmProg (asm1 ++ ["goto F_" ++ ident ++ " linking r1"]) (stkSimPopFrame sim1) label1
 
+-- generate asm for a sequence of expressions, results are pushed onto the stack in reverse order
 pushExprSeq :: AsmProg -> [Expr] -> AsmProg
 pushExprSeq prog x = _pes prog (reverse x) where
     _pes prog (x:xs) = case visitExpr prog x of
         prog1 -> _pes prog1 xs
     _pes prog [] = prog
 
+-- visit expression wrapper --
 visitExpr :: AsmProg -> Expr -> AsmProg
 visitExpr (AsmProg asm sim label) exp = case _vexpr (AsmProg asm (stkSimPushFrame sim ".expr") label) exp of
     (AsmProg asm1 sim1@(StackSim ((StkFrame _ (_:fs) _):_)) label1) -> AsmProg asm1 (stkSimPush (stkSimPopFrame sim1) (Var ".result", U32)) label1
 
+-- generate asm for an expression
+-- pushes an additional value onto the stack
 _vexpr :: AsmProg -> Expr -> AsmProg
--- stack-push operations --
+-- stack-push operations
 _vexpr (AsmProg asm sim label) (IntE x) = AsmProg (asm ++ ["push " ++ show x ++" on stack r2"]) (stkSimPush sim (Var ".int", U32)) label
 _vexpr (AsmProg asm sim label) (CharE x) = AsmProg (asm ++ ["push " ++ show (ord x) ++ " on stack r2"]) (stkSimPush sim (Var ".char", U8)) label
 _vexpr (AsmProg asm sim label) (VarE var) = case  AsmProg (asm
@@ -158,7 +186,7 @@ _vexpr prog (Dref addr) = case _vexpr prog addr of
                                         (stkSimPush (stkSimPop sim) (Var ".val", dref (stkSimPeekType sim))) label of
                                             prog1 -> enforceTypeSize prog1
 
--- relational operations --
+-- relational operations
 _vexpr prog (Le x y) = case _vexpr prog x of
     prog1 -> case _vexpr prog1 y of
         (AsmProg asm sim label) -> AsmProg (asm
@@ -255,7 +283,7 @@ _vexpr prog (And x y) = case _vexpr prog x of
                                             ++ ["push 1 on stack r2"]
                                             ++ ["L" ++ show (label + 1) ++ ":"])
                                             (stkSimPush (stkSimPop (stkSimPop sim)) (Var ".and", U8)) (label + 2)
--- binary operations --
+-- binary operations
 _vexpr prog (Sub x y) = case _vexpr prog x of
     prog1 -> case _vexpr prog1 y of
         (AsmProg asm sim label) -> case AsmProg (asm
@@ -329,13 +357,15 @@ _vexpr prog (Band x y) = case _vexpr prog x of
                                                     typ -> case stkSimPush sim1 (Var ".sub", typ) of
                                                         sim2 -> enforceTypeSize (AsmProg asm1 sim2 label)
 
--- assumes r4 contains the value we are enforcing type size for --
+-- data type sizes are enforced in a lazy manner
+-- assumes r4 contains the value we are enforcing type size for
 enforceTypeSize :: AsmProg -> AsmProg
 enforceTypeSize prog@(AsmProg asm sim label) = case stkSimPeekType sim of
     U8 -> AsmProg (asm ++ ["r4 := r4 mod 256"]
                         ++ ["push r4 on stack r2"]) sim label
     _ -> AsmProg (asm ++ ["push r4 on stack r2"]) sim label
 
+-- given the types of both values in a binary expression returns the type of the result
 evalTypes :: CType -> CType -> CType
 evalTypes U8 U8 = U8
 evalTypes p@(Ptr _) _ = p
@@ -344,16 +374,19 @@ evalTypes (Arr _ x) _ = Ptr x
 evalTypes _ (Arr _ x) = Ptr x
 evalTypes _ _ = U32
 
+-- given a type get the type of the result of dereferencing a value of that type
 dref :: CType -> CType
 dref (Ptr x) = x
 dref (Arr _ x) = x
 dref x = error ("type " ++ show x ++ " cannot be dereferenced")
 
+-- get the name of the function who's scope we are in
 getFuncName :: StackSim -> String
 getFuncName (StackSim ((StkFrame ('.':'f':'u':'n':'c':'_':ident) _ _):stk)) = ident
 getFuncName (StackSim (_:stk)) = getFuncName $ StackSim stk
 getFuncName (StackSim _) = error "can't find function name: stack empty"
 
+-- get the name of the the while loop who's scope we are in
 getWhileName :: StackSim -> String
 getWhileName (StackSim ((StkFrame ('.':'w':'h':'i':'l':'e':'_':ident) _ _):stk)) = ident
 getWhileName (StackSim (_:stk)) = getWhileName $ StackSim stk

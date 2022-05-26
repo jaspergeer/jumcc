@@ -1,21 +1,40 @@
 module ASTGen where
 
 import Text.Parsec.String (Parser)
-import Text.Parsec.Char
+import Text.Parsec.Char ( char, digit, oneOf, spaces, string )
 import Text.Parsec
+    ( ParsecT,
+      Stream,
+      char,
+      digit,
+      oneOf,
+      spaces,
+      string,
+      between,
+      chainl1,
+      many1,
+      sepBy,
+      (<|>),
+      many,
+      try )
 
+cSpecSymbs :: String
 cSpecSymbs      = "(){}[];,"
+cIdentBegin :: [Char]
 cIdentBegin     = '_':['a'..'z'] ++ ['A'..'Z']
+cIdentChar :: [Char]
 cIdentChar      = cIdentBegin ++ ['0'..'9']
+cKeywords :: [String]
 cKeywords       = ["if","while","return","else"]
+cTypes :: [String]
 cTypes          = ["int", "char"]
-
+strLitChar :: [Char]
 strLitChar = ' ':'!' : ['#'..'&'] ++ ['('..'~']
 
--- AST structure --
+-- AST structure
 
 newtype Program = Program [ExtDecl] deriving Show
-data ExtDecl = FuncDecl CType String [VarDecl] [Stat] | GlobDecl CType Var deriving Show
+data ExtDecl = FuncDecl CType String [VarDecl] [Stat] deriving Show
 data FuncCall = FuncCall String [Expr] deriving Show
 data VarDecl = VarDecl CType Var deriving Show
 data Stat = ReturnS Expr
@@ -63,7 +82,7 @@ data CType = U32
         | Arr Int CType
         deriving Show
 
--- left recursion --
+-- left recursion
 
 leftRec :: (Stream s m t)
         => ParsecT s u m a -> ParsecT s u m (a -> a) -> ParsecT s u m a
@@ -72,7 +91,7 @@ leftRec p op = rest =<< p where
                 rest (f x)
             <|> return x
 
--- between wrappers --
+-- between wrappers
 
 parend :: Parser a -> Parser a
 parend x = between (char '(' <* spaces) (char ')') x <* spaces
@@ -89,7 +108,7 @@ squoted x = between (char '\'') (char '\'') x <* spaces
 dquoted :: Parser a -> Parser a
 dquoted x = between (char '"') (char '"') x <* spaces
 
--- primitives --
+-- primitives
 
 intLiteral :: Parser Int
 intLiteral = read <$> many1 digit <* spaces
@@ -123,7 +142,7 @@ cType = try (leftRec b ptr)
         b = try (U32 <$ string "int" <* spaces)
             <|> try (U8 <$ string "char" <* spaces)
 
--- expressions --
+-- expressions
 
 intExpr :: Parser Expr
 intExpr = IntE <$> intLiteral <* spaces
@@ -183,7 +202,7 @@ expr = try postfixExpr
         <|> try unaryExpr
         <|> try primExpr
 
--- statements --
+-- statements
 
 statement :: Parser Stat
 statement = try outS <* spaces
@@ -247,23 +266,10 @@ whileS = WhileS <$> (string "while" *> spaces *> parend expr <* spaces) <*> brac
 outS :: Parser Stat
 outS = Out <$> (string "outb" *> spaces *> parend expr <* spaces <* char ';')
 
--- functions --
+-- functions
 
 extDecl :: Parser ExtDecl
-extDecl = try globDecl
-        <|> try funcDecl
-
-globDecl :: Parser ExtDecl
-globDecl = do
-    t <- cType
-    n <- var
-    a <- arr t
-    spaces
-    char ';'
-    spaces
-    return $ GlobDecl a n where
-        arr t = try ( Arr <$> brackd intLiteral <*> arr t)
-            <|> return t
+extDecl = funcDecl
 
 funcDecl :: Parser ExtDecl
 funcDecl = FuncDecl <$> cType <*> identifier <*> parend (varDecl `sepBy` (char ',' <* spaces)) <* spaces <*> braced (many statement)
@@ -271,7 +277,7 @@ funcDecl = FuncDecl <$> cType <*> identifier <*> parend (varDecl `sepBy` (char '
 funcCall :: Parser FuncCall
 funcCall = FuncCall <$> identifier <*> parend (expr `sepBy ` (char ',' <* spaces))
 
--- program --
+-- program
 
 program :: Parser Program
 program = Program <$> many1 extDecl
