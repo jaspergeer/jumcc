@@ -26,7 +26,7 @@ main = do
             case compile (remComments "" text) of
                 Right x -> printAsm x "out.ums"
                 Left x -> putStrLn $ show x
-        _ -> putStrLn "Usage: jumcc [-o FILE] FILE"
+        _ -> putStrLn "Usage: jumcc [-o OUT-FILE] IN-FILE"
 
 compile :: String -> Either ParseError AsmProg
 compile x = do
