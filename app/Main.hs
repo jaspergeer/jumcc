@@ -14,24 +14,28 @@ main :: IO ()
 main = do
     args <- getArgs
     case args of
-        ["-o", out, src] -> do
-            file <- openFile (src) ReadMode
-            text <- hGetContents file
-            case compile (remComments "" text) of
-                Right x -> printAsm x out
-                Left x -> putStrLn $ show x
-        [src] -> do
-            file <- openFile (src) ReadMode
-            text <- hGetContents file
-            case compile (remComments "" text) of
-                Right x -> printAsm x "out.ums"
-                Left x -> putStrLn $ show x
+        ["-o", out, src] -> case reverse src of
+            ('c':'m':'u':'.':xs) -> do
+                file <- openFile src ReadMode
+                text <- hGetContents file
+                case compile (reverse xs) (remComments "" text) of
+                    Right x -> printAsm x out
+                    Left x -> print x
+            _ -> error "source files should have suffix .umc"
+        [src] -> case reverse src of
+            ('c':'m':'u':'.':xs) ->do
+                file <- openFile src ReadMode
+                text <- hGetContents file
+                case compile (reverse xs) (remComments "" text) of
+                    Right x -> printAsm x "out.ums"
+                    Left x -> print x
+            _ -> error "source files should have suffix .umc"
         _ -> putStrLn "Usage: jumcc [-o OUT-FILE] IN-FILE"
 
-compile :: String -> Either ParseError AsmProg
-compile x = do
+compile :: String -> String -> Either ParseError AsmProg
+compile x pname = do
     ast <- parse program "" x
-    visitProgram ast
+    visitProgram ast pname
 
 printAsm :: AsmProg -> String -> IO()
-printAsm (AsmProg asm _ _) fname = writeFile fname $ foldl (\x y ->  x ++ (if (head y == '.') || (last y == ':') then "" else "    ") ++ y ++ "\n") "" asm
+printAsm (AsmProg _ asm _ _) fname = writeFile fname $ foldl (\x y ->  x ++ (if (head y == '.') || (last y == ':') then "" else "    ") ++ y ++ "\n") "" asm
