@@ -143,7 +143,7 @@ cType = try (leftRec b ptr)
         b = try (U32 <$ string "int" <* spaces)
             <|> try (U8 <$ string "char" <* spaces)
 
--- expressions
+-- relExpressions
 
 intExpr :: Parser Expr
 intExpr = IntE <$> intLiteral <* spaces
@@ -188,7 +188,7 @@ primExpr = try inExpr
         <|> try intExpr
         <|> try charExpr
         <|> try varExpr
-        <|> try (parend expr)
+        <|> try (parend relExpr)
 
 prefixExpr :: Parser Expr
 prefixExpr = try (Neg <$> (string "-" *> primExpr))
@@ -201,12 +201,13 @@ prefixExpr = try (Neg <$> (string "-" *> primExpr))
 postfixExpr :: Parser Expr
 postfixExpr = try (do
         l <- primExpr
-        r <- brackd expr
+        r <- brackd relExpr
         return $ Dref (Add l r))
         <|> try primExpr
 
 expr :: Parser Expr
-expr = try relExpr
+expr = try (Str <$> brackd (many cChar) <* spaces)
+    <|> try relExpr
 
 -- statements
 
@@ -221,10 +222,10 @@ statement = try outS <* spaces
         <|> try (Break <$ string "break" <* spaces <* char ';' <* spaces)
 
 returnStat :: Parser Stat
-returnStat = ReturnS <$> (string "return" *> spaces *> expr <* spaces <* char ';')
+returnStat = ReturnS <$> (string "return" *> spaces *> relExpr <* spaces <* char ';')
 
 assignStat :: Parser Stat
-assignStat = AssignS <$> expr <* spaces <*> (char '=' *> spaces *> expr <* char ';')
+assignStat = AssignS <$> relExpr <* spaces <*> (char '=' *> spaces *> relExpr <* char ';')
 
 varDecl :: Parser VarDecl
 varDecl = do
@@ -252,25 +253,25 @@ declStat = do
             <|> try (varDeclNoInit v)
 
 varDeclInit :: VarDecl -> Parser Stat
-varDeclInit x = VarDeclS x <$> (string "=" *> spaces *> expr <* spaces <* string ";")
+varDeclInit x = VarDeclS x <$> (string "=" *> spaces *> relExpr <* spaces <* string ";")
 
 varDeclNoInit:: VarDecl -> Parser Stat
 varDeclNoInit x = VarDeclS x (IntE 0) <$ spaces <* string ";"
 
 arrDeclInit :: VarDecl -> Parser Stat
 arrDeclInit x = try (ArrDeclS x <$> (string "=" *> spaces *> strLiteral) <* spaces <* string ";")
-        <|> try (ArrDeclS x <$> (string "=" *> spaces *> braced (expr `sepBy` (char ',' <* spaces)) <* spaces <* string ";"))
+        <|> try (ArrDeclS x <$> (string "=" *> spaces *> braced (relExpr `sepBy` (char ',' <* spaces)) <* spaces <* string ";"))
 
 arrDeclNoInit:: VarDecl -> Parser Stat
 arrDeclNoInit x = ArrDeclS x [] <$ spaces <* string ";"
 
 ifElseS :: Parser Stat
-ifElseS = IfS <$> (string "if" *> spaces *> parend expr <* spaces) <*> braced (many statement)
+ifElseS = IfS <$> (string "if" *> spaces *> parend relExpr <* spaces) <*> braced (many statement)
 
 whileS :: Parser Stat
-whileS = WhileS <$> (string "while" *> spaces *> parend expr <* spaces) <*> braced (many statement)
+whileS = WhileS <$> (string "while" *> spaces *> parend relExpr <* spaces) <*> braced (many statement)
 outS :: Parser Stat
-outS = Out <$> (string "outb" *> spaces *> parend expr <* spaces <* char ';')
+outS = Out <$> (string "outb" *> spaces *> parend relExpr <* spaces <* char ';')
 
 -- functions
 
@@ -281,7 +282,7 @@ funcDecl :: Parser ExtDecl
 funcDecl = FuncDecl <$> cType <*> identifier <*> parend (varDecl `sepBy` (char ',' <* spaces)) <* spaces <*> braced (many statement)
 
 funcCall :: Parser FuncCall
-funcCall = FuncCall <$> identifier <*> parend (expr `sepBy ` (char ',' <* spaces))
+funcCall = FuncCall <$> identifier <*> parend (relExpr `sepBy ` (char ',' <* spaces))
 
 -- program
 
