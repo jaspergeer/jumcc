@@ -17,6 +17,7 @@ import Text.Parsec
       (<|>),
       many,
       try )
+import Text.Parsec.Expr (buildExpressionParser)
 
 cSpecSymbs :: String
 cSpecSymbs      = "(){}[];,"
@@ -157,23 +158,29 @@ inExpr :: Parser Expr
 inExpr = In <$ string "inb()"
 
 binExpr :: Parser Expr
-binExpr = try (chainl1 primExpr op) where
-    op = try (Ge <$ string ">=" <* spaces)
-            <|> try (Le <$ string "<=" <* spaces)
-            <|> try (Eq <$ string "==" <* spaces)
-            <|> try (Ne <$ string "!=" <* spaces)
-            <|> Gt <$ string ">" <* spaces
-            <|> Lt <$ string "<" <* spaces
-            <|> Add <$ string "+" <* spaces
+binExpr = try (chainl1 prefixExpr op)
+        <|> prefixExpr where
+    op = Add <$ string "+" <* spaces
             <|> Sub <$ string "-" <* spaces
             <|> Mul <$ string "*" <* spaces
             <|> Div <$ string "/" <* spaces
-            <|> And <$ string "&&" <* spaces
             <|> Band <$ string "&" <* spaces
-            <|> Or <$ string "||" <* spaces
-            <|> Bor <$ string "||" <* spaces
+            <|> Bor <$ string "|" <* spaces
             <|> Xor <$ string "^" <* spaces
             <|> Mod <$ string "%" <* spaces
+
+relExpr :: Parser Expr
+relExpr = try (chainl1 binExpr op)
+        <|> binExpr where
+    op = Gt <$ string ">" <* spaces
+            <|> Lt <$ string "<" <* spaces
+            <|> Or <$ string "||" <* spaces
+            <|> And <$ string "&&" <* spaces
+            <|> Ge <$ string ">=" <* spaces
+            <|> Le <$ string "<=" <* spaces
+            <|> Eq <$ string "==" <* spaces
+            <|> Ne <$ string "!=" <* spaces
+           
 
 primExpr :: Parser Expr
 primExpr = try inExpr
@@ -183,24 +190,23 @@ primExpr = try inExpr
         <|> try varExpr
         <|> try (parend expr)
 
-unaryExpr :: Parser Expr
-unaryExpr = try (Neg <$> (string "-" *> primExpr))
+prefixExpr :: Parser Expr
+prefixExpr = try (Neg <$> (string "-" *> primExpr))
         <|> try (No <$> (string "!" *> primExpr))
         <|> try (Lno <$> (string "~" *> primExpr))
         <|> try (Dref <$> (string "*" *> primExpr))
         <|> try (RefE <$> (string "&" *> var))
+        <|> try postfixExpr
 
 postfixExpr :: Parser Expr
 postfixExpr = try (do
         l <- primExpr
         r <- brackd expr
         return $ Dref (Add l r))
+        <|> try primExpr
 
 expr :: Parser Expr
-expr = try postfixExpr
-        <|> try binExpr
-        <|> try unaryExpr
-        <|> try primExpr
+expr = try relExpr
 
 -- statements
 
