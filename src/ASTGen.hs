@@ -206,7 +206,7 @@ postfixExpr = try (do
         <|> try primExpr
 
 expr :: Parser Expr
-expr = try (Str <$> brackd (many cChar) <* spaces)
+expr = try (Str <$> dquoted (many cChar) <* spaces)
     <|> try relExpr
 
 -- statements
@@ -282,7 +282,7 @@ funcDecl :: Parser ExtDecl
 funcDecl = FuncDecl <$> cType <*> identifier <*> parend (varDecl `sepBy` (char ',' <* spaces)) <* spaces <*> braced (many statement)
 
 funcCall :: Parser FuncCall
-funcCall = FuncCall <$> identifier <*> parend (relExpr `sepBy ` (char ',' <* spaces))
+funcCall = FuncCall <$> identifier <*> parend (expr `sepBy ` (char ',' <* spaces))
 
 -- program
 
