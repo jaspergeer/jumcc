@@ -20,7 +20,7 @@ To specify an output file name, use the -o option.
 ```
 jumcc -o out.ums src.umc
 ```
-To generate a `.um` binary, the resulting `.ums` file must be linked with `urt0.ums` and `callmain.ums`, which are found in the `link` directory, using the UM Macro Assembler `umasm` program. I have also supplied a toy standard library in the `stdlib` directory that you may compile which implements simple versions of `printf` and `gets`.
+To generate a `.um` binary, the resulting `.ums` file must be linked with `urt0.ums` and `callmain.ums`, which are found in the `link` directory, using the UM Macro Assembler `umasm` program. I have also supplied a toy standard library in the `stdlib` directory that you may compile which implements simple versions of `puts` and `gets`.
 ```
 umasm urt0.ums stdlib.ums [your-file].ums ... callmain.ums
 ```
@@ -43,6 +43,7 @@ int[10] a;
 char[5] str = "four";
 int[3] ints = {1, 2, 3};
 ```
+The size of an array must be specified with an integer.
 
 `jumcc` does not include a complete type checker, so it is imperative when declaring and initializing arrays that the number of elements is the greater than or equal to the declared array size (in the case of brace-enclosed lists) or the number of characters + 1 (in the case of a string literal).
 
