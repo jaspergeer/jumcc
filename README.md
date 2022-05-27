@@ -12,7 +12,7 @@ stack install
 `stack setup` will download the ghc compiler if you don't have it and `stack install` will install the `jumcc` executable to `~\.local\bin` which you should add to your `PATH`.
 
 ## Usage
-By default, `jumcc` takes the name of a um-C source file `[NAME].umc` and creates a file called `[NAME].ums` to which it sends output.
+By default, `jumcc` takes the name of a um-C source file `[name].umc` and creates a file called `[name].ums` to which it sends output.
 ```
 jumcc src.umc
 ```
