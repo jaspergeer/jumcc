@@ -78,7 +78,7 @@ Functions contain a series of statements. They can be variable declarations as s
 
 Function calls:
 ```
-printf("hello world");
+puts("hello world");
 sum(1, 2);
 gets(str, 10);
 ```
@@ -100,13 +100,13 @@ While loops:
 ```
 while (x > 10) {
     x = x - 1;
-    printf("thats crazy\n");
+    puts("thats crazy\n");
 }
 ```
 If statments
 ```
 if (x == 10) {
-    printf("x is 10\n");
+    puts("x is 10\n");
 }
 ```
 
