@@ -20,7 +20,7 @@ To specify an output file name, use the -o option.
 ```
 jumcc -o out.ums src.umc
 ```
-To generate an executable `.um` binary, the resulting `.ums` file must be linked with `umcrtn.ums` and `umcrt1.ums`, which are found in the `umcrt` directory, using the UM Macro Assembler `umasm` program. I have also supplied a toy standard library in the `stdlib` directory that you may compile which implements simple versions of `puts` and `gets`.
+To generate an executable `.um` binary, the resulting `.ums` file must be linked with `umcrtn.ums` and `umcrt1.ums`, which are found in the `umcrt` directory, using the UM Macro Assembler `umasm` program (as far as I know this is only available to those with a Tufts EECS account). I have also supplied a toy standard library in the `stdlib` directory that you may compile which implements simple versions of `puts` and `gets`.
 ```
 umasm umcrtn.ums stdlib.ums [your-file].ums ... umcrt1.ums
 ```
