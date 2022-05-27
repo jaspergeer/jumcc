@@ -152,7 +152,7 @@ As there are probably still problems with `jumcc`'s expression parser, I would a
 * Due to Haskell's singly-linked list implementation, initializing arrays of size greater than ~3000 can cause extremely long compile times.
 
 ## Contributors
-* [Jasper Geer](github.com/jaspergeer)
+* [Jasper Geer](https://github.com/jaspergeer)
 
 ## License
 MIT (c) Jasper Geer
