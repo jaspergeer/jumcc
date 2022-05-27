@@ -1,3 +1,4 @@
+{-# OPTIONS_GHC -Wno-incomplete-patterns #-}
 module AsmGen where
 import ASTGen
     ( CType(..),
@@ -57,20 +58,16 @@ visitExtDeclList prog (x:xs) = case visitExtDecl prog x of
 
 -- generate asm for an external declaration
 visitExtDecl :: AsmProg -> ExtDecl -> AsmProg
-visitExtDecl prog@(AsmProg pname asm sim label) (FuncDecl _ ident params body) = case stkSimPush (_sspa (stkSimPushFrame sim (".func_" ++ ident)) params) (Var ".ret",U32) of
-    result -> case visitStatList (AsmProg pname (asm ++ ["F_" ++ ident ++ ":"]
-                                                ++ ["push r1 on stack r2"]) result label) body of
-        AsmProg pname asm1 sim1@(StackSim stk@((StkFrame _ (_:fs) size):_)) label1 -> AsmProg pname (asm1
-                                                                                        ++ ["F_END_" ++ ident ++ ":"]
-                                                                                        ++ replicate (size - (length params + 1)) "pop stack r2"
-                                                                                        ++ ["pop r4 off stack r2"]
-                                                                                        ++ replicate (length params) "pop stack r2"
-                                                                                        ++ ["goto r4"] ) (stkSimPopFrame sim1) label1
+visitExtDecl prog@(AsmProg pname asm sim label) (FuncDecl _ ident params body) = case stkSimPush (pushArgs (stkSimPushFrame sim (".func_" ++ ident)) params) (Var ".ret",U32) of
+    result -> case visitStatList (AsmProg pname (asm 
+                                                    ++ ["F_" ++ ident ++ ":"]
+                                                    ++ ["push r1 on stack r2"]) result label) body of
+                                                    (AsmProg pname asm1 sim1 label1) -> AsmProg pname asm1 (stkSimPopFrame sim1) label1
 
 -- push sequence of arguments onto stack simulation
-_sspa :: StackSim -> [VarDecl] -> StackSim
-_sspa sim ((VarDecl t v):ps) = stkSimPush (_sspa sim ps) (v,t)
-_sspa sim [] = sim
+pushArgs :: StackSim -> [VarDecl] -> StackSim
+pushArgs sim ((VarDecl t v):ps) = stkSimPush (pushArgs sim ps) (v,t)
+pushArgs sim [] = sim
 
 -- generate asm for a list of statements
 visitStatList :: AsmProg -> [Stat] -> AsmProg
@@ -78,11 +75,22 @@ visitStatList prog [] = prog
 visitStatList prog (x:xs) = case visitStat prog x of
     result -> visitStatList result xs
 
+-- gets the size of the current function stack
+getFuncSize :: StackSim -> Int
+getFuncSize (StackSim ((StkFrame ('.':'f':'u':'n':'c':_) _ size):xs)) = size;
+getFuncSize (StackSim ((StkFrame _ _ size):xs)) = size + getFuncSize (StackSim xs);
+getFuncSize _ = error "function stack frame not found"
+
 -- generate asm for a statement
 visitStat :: AsmProg -> Stat -> AsmProg
 visitStat prog (ReturnS exp) = case visitExpr prog exp of
-    (AsmProg pname asm sim label) -> AsmProg pname (asm ++ ["pop r1 off stack r2"]
-                                                                                ++ ["goto F_END_" ++ getFuncName sim]) (stkSimPop sim) label
+    (AsmProg pname asm sim label) -> case stkSimPop sim of
+        sim1 -> case stkSimQuery sim1 (Var ".ret") of
+            retPos-> AsmProg pname (asm ++ ["pop r1 off stack r2"]
+                                        ++ replicate retPos "pop stack r2"
+                                        ++ ["pop r4 off stack r2"]
+                                        ++ replicate (getFuncSize sim1 - (retPos + 1)) "pop stack r2"
+                                        ++ ["goto r4"]) sim1 label
 visitStat prog (VarDeclS (VarDecl typ var) init) = case visitExpr prog init of
     (AsmProg pname asm sim label) -> AsmProg pname asm (stkSimPush (stkSimPop sim) (var, typ)) label
 visitStat prog (ArrDeclS (VarDecl (Arr size typ) var) []) = case pushExprSeq prog (replicate size (IntE 0)) of
