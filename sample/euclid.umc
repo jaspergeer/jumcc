@@ -1,6 +1,40 @@
+/**
+ * @file euclid.umc
+ * @author Jasper Geer
+ * @brief Sample program that prompts user for two numbers and prints their
+ *        greatest common divisor. Demonstration of um-C pointer arithmetic,
+ *        arrays, recursion, control flow.
+ */
+
+// REQUIRES stdlib.umc
+
 int main() {
-    outb(gcd(120, 120));
-    return 0;
+    char a_str[11];
+    char b_str[11];
+
+    puts("Enter your first number: ");
+    gets(a_str, 11);
+    puts("Enter your second number: ");
+    gets(b_str, 11);
+	
+    int a = stoi(a_str);
+    int b = stoi(b_str);
+
+    int result = gcd(a, b);
+    
+    char res_str[11];
+    res_str[10] = '\0';
+    char *curr = res_str + 9;
+
+    while (result > 0) {
+        *curr = result % 10 + 48;
+        result = result / 10;
+        curr = curr - 1;
+    }
+    puts("The gcd is: ");
+    puts(curr + 1);
+    outb('\n');
+    return result;
 }
 
 int gcd(int a, int b) {
