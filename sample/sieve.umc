@@ -61,4 +61,5 @@ int printInt(int i) {
         curr = curr - 1;
     }
     puts(curr + 1);
+    return 0;
 }
