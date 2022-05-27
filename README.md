@@ -28,7 +28,7 @@ umasm umcrtn.ums stdlib.ums [your-file].ums ... umcrt1.ums
 ## um-C
 I haven't written a grammar yet but here is a general overview of the language:
 
-There are 2 primitive types: `char` and `int`. Both are unsigned and stored in memory as 32-bit values but chars are truncated to between 0 and 255 when accessed. These can be declared like so:
+There are 2 primitive types: `char` and `int`. Both are unsigned and stored in memory as 32-bit values but `char`s are truncated to between 0 and 255 when accessed. These can be declared like so:
 ```
 int a;
 int b = 1 + 2;
@@ -45,7 +45,8 @@ int[3] ints = {1, 2, 3};
 ```
 The size of an array must be specified with an integer.
 
-`jumcc` does not include a complete type checker, so it is imperative when declaring and initializing arrays that the number of elements is the greater than or equal to the declared array size (in the case of brace-enclosed lists) or the number of characters + 1 (in the case of a string literal).
+`jumcc` does not include a complete type checker, so it is imperative when declaring and initializing arrays that the number of elements is the greater than or equal to the declared array size (in the case of brace-enclosed lists) or the number of 
+acters + 1 (in the case of a string literal).
 
 Pointers are also supported, and a variable can have a type of pointer to pointer, pointer to array, or pointer to primitive type. They are declared like so:
 ```
