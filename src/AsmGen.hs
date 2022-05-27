@@ -75,7 +75,7 @@ visitStatList prog [] = prog
 visitStatList prog (x:xs) = case visitStat prog x of
     result -> visitStatList result xs
 
--- gets the size of the current function stack
+-- gets the size of the current function stack frame
 getFuncSize :: StackSim -> Int
 getFuncSize (StackSim ((StkFrame ('.':'f':'u':'n':'c':_) _ size):xs)) = size;
 getFuncSize (StackSim ((StkFrame _ _ size):xs)) = size + getFuncSize (StackSim xs);
