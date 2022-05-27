@@ -44,7 +44,7 @@ int[10] a;
 char[5] str = "four";
 int[3] ints = {1, 2, 3};
 ```
-The size of an array must be specified with an integer.
+The size of an array must be specified with an integer constant.
 
 `jumcc` does not include a complete type checker, so it is imperative when declaring and initializing arrays that the number of elements is the greater than or equal to the declared array size (in the case of brace-enclosed lists) or the number of 
 acters + 1 (in the case of a string literal).
@@ -150,6 +150,7 @@ As there are probably still problems with `jumcc`'s expression parser, I would a
 
 ## Notes
 * Due to Haskell's singly-linked list implementation, initializing arrays of size greater than ~3000 can cause extremely long compile times.
+* The default stack size for a um-C program is 100000, but you can increase this by changing the value in umcrtn.ums
 
 ## Contributors
 * [Jasper Geer](https://github.com/jaspergeer)
