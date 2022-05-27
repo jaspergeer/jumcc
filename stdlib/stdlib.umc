@@ -1,4 +1,4 @@
-int printf(char *str) {
+int puts(char *str) {
     while((*str) != '\0') {
         outb(*str);
         str = str + 1;
@@ -18,4 +18,14 @@ int gets(char *str, int size) {
     }
     str[ct] = '\0';
     return 0;
+}
+
+int stoi(char *str) {
+    int total = 0;
+    while ((*str) != '\0') {
+        total = total * 10;
+        total = total + (*str) - 48;
+        str = str + 1;
+    }
+    return total;
 }
