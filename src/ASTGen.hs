@@ -216,8 +216,8 @@ statement = try outS <* spaces
         <|> try ifElseS <* spaces
         <|> try whileS <* spaces
         <|> try returnStat <* spaces
-        <|> try assignStat <* spaces
         <|> try declStat <* spaces
+        <|> try assignStat <* spaces
         <|> try (FuncCallS <$> funcCall <* spaces <* char ';' <* spaces)
         <|> try (Break <$ string "break" <* spaces <* char ';' <* spaces)
 
