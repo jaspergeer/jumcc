@@ -27,7 +27,7 @@ umasm umcrtn.ums stdlib.ums [your-file].ums ... umcrt1.ums
 I've included two sample programs in the `sample` directory that you can compile and assemble/link. Both depend on `stdlib.umc`
 
 ## um-C
-I haven't written a grammar yet but here is a general overview of the language:
+um-C is nearly a strict subset of C with a few minor differences. However, it should be relatively easy to modify a um-C program to be compiled by gcc or clang. I haven't written a grammar yet but here is a general overview of the language:
 
 There are 2 primitive types: `char` and `int`. Both are unsigned and stored in memory as 32-bit values but `char` values are truncated to between 0 and 255 when accessed. These can be declared like so:
 ```
