@@ -93,13 +93,12 @@ visitStat prog (ArrDeclS (VarDecl (Arr size typ) var) init) = case pushExprSeq p
     (AsmProg pname asm sim label) -> AsmProg pname (asm ++ ["r4 := r2"]
                                             ++ ["push r4 on stack r2"]) (stkSimPush sim (var,Ptr typ)) label
 visitStat prog (IfS cond body) = case visitExpr prog cond of
-    (AsmProg pname asm sim label) -> case visitStatList (AsmProg pname (asm
-                                                                                             ++ ["pop r4 off stack r2"]
-                                                                                             ++ ["if (r4 == 0) goto L" ++ show label])
-                                                                                     (stkSimPushFrame (stkSimPop sim) ".if") (label + 1)) body of
+    (AsmProg pname asm sim label) -> case visitStatList (AsmProg pname (asm ++ ["pop r4 off stack r2"]
+                                                                            ++ ["if (r4 == 0) goto " ++ pname ++ "L" ++ show label])
+                                                                        (stkSimPushFrame (stkSimPop sim) ".if") (label + 1)) body of
      AsmProg pname asm1 sim1@(StackSim ((StkFrame _ _ size):_)) label1 -> AsmProg pname (asm1
                                                                                  ++ replicate size "pop stack r2"
-                                                                                 ++ ["L" ++ show label ++ ":"]) (stkSimPopFrame sim1) label1
+                                                                                 ++ [pname ++ "L" ++ show label ++ ":"]) (stkSimPopFrame sim1) label1
 visitStat prog (Out exp) = case visitExpr prog exp of
     (AsmProg pname asm sim label) -> AsmProg pname (asm ++ ["pop r4 off stack r2"]
                                             ++ ["output r4"]) (stkSimPop sim) label
