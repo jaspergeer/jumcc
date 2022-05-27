@@ -60,6 +60,8 @@ int func(int a) {
     return a;
 }
 ```
+Functions must terminate with a `return` statement. The compiler does not enforce this but failing to do so will result in unintended behavior.
+
 The `main` function is the entry point into a program, and there can be only one across all the `.umc` files you intend to compile and link together to create your program.
 ```
 int main() {
@@ -143,6 +145,10 @@ str[3] = str[2];
 ```
 
 As there are probably still problems with `jumcc`'s expression parser, I would advise that any compound expression on either side of a binop or relop be put in parentheses.
+
+## Notes
+* Due to Haskell's singly-linked list implementation, initializing arrays of size greater than ~3000 can cause extremely long compile times.
+* Because 
 
 ## Contributors
 * [Jasper Geer](github.com/jaspergeer)
