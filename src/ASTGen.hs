@@ -150,7 +150,7 @@ cType = try (leftRec b ptr)
         b = try (U32 <$ string "int" <* spaces)
             <|> try (U8 <$ string "char" <* spaces)
 
--- relExpressions
+-- expressions
 
 intExpr :: Parser Expr
 intExpr = IntE <$> intLiteral <* spaces
