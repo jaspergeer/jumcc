@@ -28,7 +28,7 @@ umasm umcrtn.ums stdlib.ums [your-file].ums ... umcrt1.ums
 ## um-C
 I haven't written a grammar yet but here is a general overview of the language:
 
-There are 2 primitive types: `char` and `int`. Both are unsigned and stored in memory as 32-bit values but `char`s are truncated to between 0 and 255 when accessed. These can be declared like so:
+There are 2 primitive types: `char` and `int`. Both are unsigned and stored in memory as 32-bit values but `char` values are truncated to between 0 and 255 when accessed. These can be declared like so:
 ```
 int a;
 int b = 1 + 2;
@@ -149,7 +149,6 @@ As there are probably still problems with `jumcc`'s expression parser, I would a
 
 ## Notes
 * Due to Haskell's singly-linked list implementation, initializing arrays of size greater than ~3000 can cause extremely long compile times.
-* Because 
 
 ## Contributors
 * [Jasper Geer](github.com/jaspergeer)
