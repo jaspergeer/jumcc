@@ -149,7 +149,7 @@ str[3] = str[2];
 As there are probably still problems with `jumcc`'s expression parser, I would advise that any compound expression on either side of a binop or relop be put in parentheses.
 
 ## Notes
-* Due to Haskell's singly-linked list implementation, initializing arrays of size greater than ~3000 can cause extremely long compile times.
+* Initializing arrays of size greater than ~3000 can cause extremely long compile times.
 * The default stack size for a um-C program is 100000 32-bit words, but you can increase this by changing the value in umcrtn.ums
 
 ## Built With
