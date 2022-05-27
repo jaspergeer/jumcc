@@ -180,7 +180,7 @@ relExpr = try (chainl1 binExpr op)
             <|> try (Ne <$ string "!=" <* spaces)
             <|> try (Gt <$ string ">" <* spaces)
             <|> try (Lt <$ string "<" <* spaces)
-           
+
 
 primExpr :: Parser Expr
 primExpr = try inExpr
@@ -287,4 +287,4 @@ funcCall = FuncCall <$> identifier <*> parend (expr `sepBy ` (char ',' <* spaces
 -- program
 
 program :: Parser Program
-program = Program <$> many1 extDecl
+program = Program <$> many1 (spaces *> extDecl <* spaces)
