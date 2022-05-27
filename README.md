@@ -24,6 +24,7 @@ To generate an executable `.um` binary, the resulting `.ums` file must be linked
 ```
 umasm umcrtn.ums stdlib.ums [your-file].ums ... umcrt1.ums
 ```
+I've included two sample programs in the `sample` directory that you can compile and assemble/link. Both depend on `stdlib.umc`
 
 ## um-C
 I haven't written a grammar yet but here is a general overview of the language:
