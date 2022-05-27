@@ -46,7 +46,7 @@ int[3] ints = {1, 2, 3};
 ```
 The size of an array must be specified with an integer constant.
 
-`jumcc` does not include a complete type checker, so it is imperative when declaring and initializing arrays that the number of elements is the greater than or equal to the declared array size (in the case of brace-enclosed lists) or the number of 
+`jumcc` does not include a type checker, so it is imperative when declaring and initializing arrays that the number of elements is the greater than or equal to the declared array size (in the case of brace-enclosed lists) or the number of 
 acters + 1 (in the case of a string literal).
 
 Pointers are also supported, and a variable can have a type of pointer to pointer, pointer to array, or pointer to primitive type. They are declared like so:
