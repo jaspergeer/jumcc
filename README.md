@@ -150,7 +150,12 @@ As there are probably still problems with `jumcc`'s expression parser, I would a
 
 ## Notes
 * Due to Haskell's singly-linked list implementation, initializing arrays of size greater than ~3000 can cause extremely long compile times.
-* The default stack size for a um-C program is 100000, but you can increase this by changing the value in umcrtn.ums
+* The default stack size for a um-C program is 100000 32-bit words, but you can increase this by changing the value in umcrtn.ums
+
+## Built With
+* [Haskell](https://www.haskell.org/)
+* [parsec](https://hackage.haskell.org/package/parsec)
+* [VSCode](https://code.visualstudio.com)
 
 ## Contributors
 * [Jasper Geer](https://github.com/jaspergeer)
