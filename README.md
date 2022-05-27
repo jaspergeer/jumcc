@@ -1,5 +1,5 @@
 # jumcc
-`jumcc` is a compiler for um-C, a C-like language, that targets the 'UM Macro Assembler' language detailed [here](https://www.cs.tufts.edu/comp/40-2011f/handouts/umasm.html), which is used to teach students in Tufts University's CS40 course. I was told while taking CS40 that a compiler didn't yet exist targeting this assembly language so I decided to write one.
+`jumcc` is a compiler for um-C, a C-like language I created, that targets the 'UM Macro Assembler' language detailed [here](https://www.cs.tufts.edu/comp/40-2011f/handouts/umasm.html), which is used to teach students in Tufts University's CS40 course. I was told while taking CS40 that a compiler didn't yet exist targeting this assembly language so I decided to write `jumcc`.
 
 ## Installation
 To compile `jumcc` from source, install [Stack](https://docs.haskellstack.org/en/stable/install_and_upgrade/).
