@@ -1,3 +1,10 @@
+{-
+ - Main.hs
+ - Author: Jasper Geer, jasper.geer@gmail.com
+ - Copyright (c) 2022 Jasper Geer
+ - Licensed under the MIT License
+ -}
+
 module Main where
 import ASTGen ( program )
 import AsmGen ( visitProgram, AsmProg(..) )

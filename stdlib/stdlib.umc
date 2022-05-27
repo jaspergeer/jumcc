@@ -3,6 +3,8 @@
  * @author Jasper Geer
  * @brief Toy 'standard library' for um-C programs which can be compiled and
  *        linked against.
+ * @copyright Copyright (c) 2022 Jasper Geer
+ * Licensed under the MIT license.
  */
 
 // prints a string terminated by an null character to output

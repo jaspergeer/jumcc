@@ -1,3 +1,10 @@
+{-
+ - ASTGen.hs
+ - Author: Jasper Geer, jasper.geer@gmail.com
+ - Copyright (c) 2022 Jasper Geer
+ - Licensed under the MIT License
+ -}
+
 module ASTGen where
 
 import Text.Parsec.String (Parser)

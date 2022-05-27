@@ -3,6 +3,8 @@
  * @author Jasper Geer
  * @brief Sample program that uses the Sieve of Erasthones algorithm to find
  *        all primes up to and including a user-provided value.
+ * @copyright Copyright (c) 2022 Jasper Geer
+ * Licensed under the MIT license.
  */
 
 // REQUIRES stdlib.umc

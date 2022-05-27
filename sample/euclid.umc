@@ -4,9 +4,12 @@
  * @brief Sample program that prompts user for two numbers and prints their
  *        greatest common divisor. Demonstration of um-C pointer arithmetic,
  *        arrays, recursion, control flow.
+ * @copyright Copyright (c) 2022 Jasper Geer
+ * Licensed under the MIT license.
  */
 
 // REQUIRES stdlib.umc
+
 
 int main() {
     char a_str[11];

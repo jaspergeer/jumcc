@@ -1,3 +1,10 @@
+{-
+ - PreProc.hs
+ - Author: Jasper Geer, jasper.geer@gmail.com
+ - Copyright (c) 2022 Jasper Geer
+ - Licensed under the MIT License
+ -}
+
 module PreProc where
 
 remComments :: String -> String -> String

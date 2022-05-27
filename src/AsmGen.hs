@@ -1,4 +1,10 @@
-{-# OPTIONS_GHC -Wno-incomplete-patterns #-}
+{-
+ - AsmGen.hs
+ - Author: Jasper Geer, jasper.geer@gmail.com
+ - Copyright (c) 2022 Jasper Geer
+ - Licensed under the MIT license
+ -}
+
 module AsmGen where
 import ASTGen
     ( CType(..),
