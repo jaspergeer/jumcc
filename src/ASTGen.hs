@@ -160,26 +160,26 @@ inExpr = In <$ string "inb()"
 binExpr :: Parser Expr
 binExpr = try (chainl1 prefixExpr op)
         <|> prefixExpr where
-    op = Add <$ string "+" <* spaces
-            <|> Sub <$ string "-" <* spaces
-            <|> Mul <$ string "*" <* spaces
-            <|> Div <$ string "/" <* spaces
-            <|> Band <$ string "&" <* spaces
-            <|> Bor <$ string "|" <* spaces
-            <|> Xor <$ string "^" <* spaces
-            <|> Mod <$ string "%" <* spaces
+    op = try (Add <$ string "+" <* spaces)
+            <|> try (Sub <$ string "-" <* spaces)
+            <|> try (Mul <$ string "*" <* spaces)
+            <|> try (Div <$ string "/" <* spaces)
+            <|> try (Band <$ string "&" <* spaces)
+            <|> try (Bor <$ string "|" <* spaces)
+            <|> try (Xor <$ string "^" <* spaces)
+            <|> try (Mod <$ string "%" <* spaces)
 
 relExpr :: Parser Expr
 relExpr = try (chainl1 binExpr op)
         <|> binExpr where
-    op = Gt <$ string ">" <* spaces
-            <|> Lt <$ string "<" <* spaces
-            <|> Or <$ string "||" <* spaces
-            <|> And <$ string "&&" <* spaces
-            <|> Ge <$ string ">=" <* spaces
-            <|> Le <$ string "<=" <* spaces
-            <|> Eq <$ string "==" <* spaces
-            <|> Ne <$ string "!=" <* spaces
+    op = try (Or <$ string "||" <* spaces)
+            <|> try (And <$ string "&&" <* spaces)
+            <|> try (Ge <$ string ">=" <* spaces)
+            <|> try (Le <$ string "<=" <* spaces)
+            <|> try (Eq <$ string "==" <* spaces)
+            <|> try (Ne <$ string "!=" <* spaces)
+            <|> try (Gt <$ string ">" <* spaces)
+            <|> try (Lt <$ string "<" <* spaces)
            
 
 primExpr :: Parser Expr
