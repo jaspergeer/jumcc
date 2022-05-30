@@ -46,8 +46,8 @@ int[3] ints = {1, 2, 3};
 ```
 The size of an array must be specified with an integer constant.
 
-`jumcc` does not include a type checker (maybe a future project haha), so it is imperative when declaring and initializing arrays that the number of elements is the greater than or equal to the declared array size (in the case of brace-enclosed lists) or the number of 
-acters + 1 (in the case of a string literal).
+`jumcc` does not include comprehensive type checking, so it is imperative when declaring and initializing arrays that the number of elements is the greater than or equal to the declared array size (in the case of brace-enclosed lists) or the number of 
+characters + 1 (in the case of a string literal).
 
 Pointers are also supported, and a variable can have a type of pointer to pointer, pointer to array, or pointer to primitive type. They are declared like so:
 ```
@@ -72,7 +72,7 @@ int main() {
 }
 ```
 
-Unlike C, function declarations are not necessary or permitted, though this is because of the lack of a type checker. Be careful!
+Unlike C, function declarations are not necessary or permitted, but the number and type of arguments are not checked. Be careful!
 
 Functions contain a series of statements. They can be variable declarations as seen before or:
 
@@ -82,13 +82,13 @@ puts("hello world");
 sum(1, 2);
 gets(str, 10);
 ```
-Once again, due to the lack of a type checker, function calls are not checked for parameter count or type, so make sure you pass the correct number of arguments in the correct order because the compiler will not let you know if you have done so incorrectly.
 
 Assignment:
 ```
 *str = 'a';
 arr[5] = (10 + b);
 ```
+
 Return:
 ```
 return 100;
@@ -140,6 +140,7 @@ Unary (prefix) operators `-`, `!`, `~`, `\*`, `&`
 ```
 *(str + 3) = *(str + 2);
 ```
+Note that only pointer and array type values may be dereferenced.
 
 Unary (postfix) operator `[]` used for array access.
 ```
