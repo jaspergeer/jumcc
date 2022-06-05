@@ -29,6 +29,8 @@ library
       ASTGen
       PreProc
       StackSim
+      SymbTable
+      TypeChecker
   other-modules:
       Paths_jumcc
   hs-source-dirs:

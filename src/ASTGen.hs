@@ -42,7 +42,8 @@ strLitChar = ' ':'!' : ['#'..'&'] ++ ['('..'~']
 -- AST structure
 
 newtype Program = Program [ExtDecl] deriving Show
-data ExtDecl = FuncDecl CType String [VarDecl] [Stat] deriving Show
+data ExtDecl = FuncDefn CType String [VarDecl] [Stat]
+            | FuncDecl CType String [VarDecl] deriving Show
 data FuncCall = FuncCall String [Expr] deriving Show
 data VarDecl = VarDecl CType Var deriving Show
 data Stat = ReturnS Expr
@@ -149,6 +150,9 @@ cType = try (leftRec b ptr)
         ptr = Ptr <$ spaces <* char '*' <* spaces
         b = try (U32 <$ string "int" <* spaces)
             <|> try (U8 <$ string "char" <* spaces)
+
+funcCall :: Parser FuncCall
+funcCall = FuncCall <$> identifier <*> parend (expr `sepBy ` (char ',' <* spaces))
 
 -- expressions
 
@@ -280,16 +284,16 @@ whileS = WhileS <$> (string "while" *> spaces *> parend relExpr <* spaces) <*> b
 outS :: Parser Stat
 outS = Out <$> (string "outb" *> spaces *> parend relExpr <* spaces <* char ';')
 
--- functions
+-- external declarations
 
 extDecl :: Parser ExtDecl
-extDecl = funcDecl
+extDecl = funcDefn
+
+funcDefn :: Parser ExtDecl
+funcDefn = FuncDefn <$> cType <*> identifier <*> parend (varDecl `sepBy` (char ',' <* spaces)) <* spaces <*> braced (many statement)
 
 funcDecl :: Parser ExtDecl
-funcDecl = FuncDecl <$> cType <*> identifier <*> parend (varDecl `sepBy` (char ',' <* spaces)) <* spaces <*> braced (many statement)
-
-funcCall :: Parser FuncCall
-funcCall = FuncCall <$> identifier <*> parend (expr `sepBy ` (char ',' <* spaces))
+funcDecl = FuncDecl <$> cType <*> identifier <*> parend (varDecl `sepBy` (char ',' <* spaces)) <* spaces <* char ';'
 
 -- program
 

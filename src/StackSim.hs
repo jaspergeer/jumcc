@@ -63,7 +63,3 @@ typeSize (Ptr _) = 1
 typeSize U8 = 1
 typeSize U32 = 1
 typeSize (Arr n typ) = 1 + n
-
-getDims :: CType -> [Int]
-getDims (Arr n typ) = n:getDims typ
-getDims _ = []

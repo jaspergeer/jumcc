@@ -64,7 +64,7 @@ visitExtDeclList prog (x:xs) = case visitExtDecl prog x of
 
 -- generate asm for an external declaration
 visitExtDecl :: AsmProg -> ExtDecl -> AsmProg
-visitExtDecl prog@(AsmProg pname asm sim label) (FuncDecl _ ident params body) = case stkSimPush (pushArgs (stkSimPushFrame sim (".func_" ++ ident)) params) (Var ".ret",U32) of
+visitExtDecl prog@(AsmProg pname asm sim label) (FuncDefn _ ident params body) = case stkSimPush (pushArgs (stkSimPushFrame sim (".func_" ++ ident)) params) (Var ".ret",U32) of
     result -> case visitStatList (AsmProg pname (asm 
                                                     ++ ["F_" ++ ident ++ ":"]
                                                     ++ ["push r1 on stack r2"]) result label) body of
