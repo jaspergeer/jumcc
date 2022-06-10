@@ -46,7 +46,7 @@ import Text.Parsec ( ParseError )
 data AsmProg = AsmProg String [String] StackSim Int deriving Show
 
 -- generate asm for a program
-visitProgram :: Program -> String -> Either ParseError AsmProg
+visitProgram :: Program -> String -> AsmProg
 visitProgram (Program extdecls) pname = case visitExtDeclList (AsmProg pname
                                         [".section init",
                                          ".zero r0",
@@ -55,7 +55,7 @@ visitProgram (Program extdecls) pname = case visitExtDeclList (AsmProg pname
                                          "r2 := callstack",
                                          ".section text"]
                                             (stkSimPushFrame stkSimEmpty ".global") 0) extdecls of
-                                                (AsmProg pname asm sim label) -> return $ AsmProg pname (".section rodata" : asm) sim label
+                                                (AsmProg pname asm sim label) -> AsmProg pname (".section rodata" : asm) sim label
 
 visitExtDeclList :: AsmProg -> [ExtDecl] -> AsmProg
 visitExtDeclList prog [] = prog

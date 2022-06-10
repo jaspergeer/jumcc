@@ -16,33 +16,36 @@ import System.Environment (getArgs)
 import System.IO (openFile, IOMode(ReadMode), hGetContents)
 import Text.Parsec.Error (errorMessages, messageString)
 import PreProc (remComments)
+import GHC.Base (IO(IO))
 
 main :: IO ()
 main = do
     args <- getArgs
     case args of
-        ["-o", out, src] -> case reverse src of
+        ("-o":out:src:xs) -> case reverse src of
             ('c':'m':'u':'.':xs) -> do
                 file <- openFile src ReadMode
                 text <- hGetContents file
-                case compile (reverse xs) (remComments "" text) of
-                    Right x -> printAsm x out
-                    Left x -> print x
+                printAsm (compile (reverse xs) (remComments "" text)) out
             _ -> error "source files should have suffix .umc"
-        [src] -> case reverse src of
-            ('c':'m':'u':'.':xs) ->do
+        (src:xs) -> case reverse src of
+            ('c':'m':'u':'.':xs) -> do
                 file <- openFile src ReadMode
-                text <- hGetContents file
-                case compile (reverse xs) (remComments "" text) of
-                    Right x -> printAsm x (reverse xs ++ ".ums")
-                    Left x -> print x
+                text <- hGetContents file 
+                printAsm (compile (reverse xs) (remComments "" text)) (reverse xs ++ ".ums")
             _ -> error "source files should have suffix .umc"
         _ -> putStrLn "Usage: jumcc [-o OUT-FILE] IN-FILE"
 
-compile :: String -> String -> Either ParseError AsmProg
-compile pname text = do
-    ast <- parse program "" text
-    visitProgram ast pname
+compile :: String -> String -> AsmProg
+compile pname text = case parse program "" text of
+    Right ast -> visitProgram ast pname
+    Left err -> error (show err)
 
+headerList :: [String] -> [String]
+headerList (x:xs) = do
+    contents hGetContents <$> openFile x ReadMode of
+    (IO c) -> [c]
+
+headerList [] = []
 printAsm :: AsmProg -> String -> IO()
 printAsm (AsmProg _ asm _ _) fname = writeFile fname $ foldl (\x y ->  x ++ (if (head y == '.') || (last y == ':') then "" else "    ") ++ y ++ "\n") "" asm ++ "\n"
