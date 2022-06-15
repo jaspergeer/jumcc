@@ -23,8 +23,17 @@ import Text.Parsec
       sepBy,
       (<|>),
       many,
-      try )
+      try, getPosition, SourcePos )
 import Text.Parsec.Expr (buildExpressionParser)
+import CType ( CType(..) )
+import Var ( Var(..) )
+import AnnAst
+    ( AExpr(..),
+      AStat(..),
+      AVarDecl(..),
+      AFuncCall(..),
+      AExtDecl(..),
+      AnnAst(..) )
 
 cSpecSymbs :: String
 cSpecSymbs      = "(){}[];,"
@@ -39,57 +48,11 @@ cTypes          = ["int", "char"]
 strLitChar :: [Char]
 strLitChar = ' ':'!' : ['#'..'&'] ++ ['('..'~']
 
--- AST structure
 
-newtype Program = Program [ExtDecl] deriving Show
-data ExtDecl = FuncDefn CType String [VarDecl] [Stat]
-            | FuncDecl CType String [VarDecl] deriving Show
-data FuncCall = FuncCall String [Expr] deriving Show
-data VarDecl = VarDecl CType Var deriving Show
-data Stat = ReturnS Expr
-        | AssignS Expr Expr
-        | VarDeclS VarDecl Expr
-        | ArrDeclS VarDecl [Expr]
-        | FuncCallS FuncCall
-        | IfS Expr [Stat]
-        | WhileS Expr [Stat]
-        | Out Expr
-        | Break
-        deriving Show
-data Expr = IntE Int
-        | CharE Char
-        | VarE Var
-        | RefE Var
-        | Neg Expr
-        | Lno Expr
-        | No Expr
-        | Dref Expr
-        | FunE FuncCall
-        | Ge Expr Expr
-        | Le Expr Expr
-        | Eq Expr Expr
-        | Ne Expr Expr
-        | Gt Expr Expr
-        | Lt Expr Expr
-        | Or Expr Expr
-        | And Expr Expr
-        | Add Expr Expr
-        | Sub Expr Expr
-        | Mul Expr Expr
-        | Div Expr Expr
-        | Band Expr Expr
-        | Bor Expr Expr
-        | Xor Expr Expr
-        | Mod Expr Expr
-        | Str String
-        | In
-        deriving Show
-newtype Var = Var String deriving (Show, Eq)
-data CType = U32
-        | U8
-        | Ptr CType
-        | Arr Int CType
-        deriving Show
+annotate :: (SourcePos -> t) -> (t -> Parser a) -> Parser a
+annotate f p = do
+        pos <- getPosition
+        p $ f pos
 
 -- left recursion
 
@@ -122,10 +85,11 @@ dquoted x = between (char '"') (char '"') x <* spaces
 intLiteral :: Parser Int
 intLiteral = read <$> many1 digit <* spaces
 
-strLiteral :: Parser [Expr]
+strLiteral :: Parser [AExpr]
 strLiteral =  do
-        s <- dquoted (many (CharE <$> cChar)) <* spaces
-        return (s ++ [CharE '\0'])
+        s <- dquoted (many (annotate ACharE (<$> cChar))) <* spaces
+        pos <- getPosition
+        return (s ++ [ACharE pos '\0'])
 
 charLiteral :: Parser Char
 charLiteral = squoted cChar
@@ -151,151 +115,180 @@ cType = try (leftRec b ptr)
         b = try (U32 <$ string "int" <* spaces)
             <|> try (U8 <$ string "char" <* spaces)
 
-funcCall :: Parser FuncCall
-funcCall = FuncCall <$> identifier <*> parend (expr `sepBy ` (char ',' <* spaces))
+funcCall :: Parser AFuncCall
+funcCall = do
+        pos <- getPosition
+        AFuncCall pos <$> identifier <*> parend (expr `sepBy ` (char ',' <* spaces))
 
 -- expressions
 
-intExpr :: Parser Expr
-intExpr = IntE <$> intLiteral <* spaces
+intExpr :: Parser AExpr
+intExpr = annotate AIntE (<$> (intLiteral <* spaces))
 
-charExpr :: Parser Expr
-charExpr = CharE <$> charLiteral <* spaces
+charExpr :: Parser AExpr
+charExpr = annotate ACharE (<$> (charLiteral <* spaces))
 
-varExpr :: Parser Expr
-varExpr = VarE <$> var
+varExpr :: Parser AExpr
+varExpr = annotate AVarE (<$> var)
 
-inExpr :: Parser Expr
-inExpr = In <$ string "inb()"
+inExpr :: Parser AExpr
+inExpr = annotate AIn (<$ string "inb()")
 
-binExpr :: Parser Expr
+binExpr :: Parser AExpr
 binExpr = try (chainl1 prefixExpr op)
         <|> prefixExpr where
-    op = try (Add <$ string "+" <* spaces)
-            <|> try (Sub <$ string "-" <* spaces)
-            <|> try (Mul <$ string "*" <* spaces)
-            <|> try (Div <$ string "/" <* spaces)
-            <|> try (Band <$ string "&" <* spaces)
-            <|> try (Bor <$ string "|" <* spaces)
-            <|> try (Xor <$ string "^" <* spaces)
-            <|> try (Mod <$ string "%" <* spaces)
+    op = do
+        pos <- getPosition
+        try (AAdd pos <$ string "+" <* spaces)
+            <|> try (ASub pos <$ string "-" <* spaces)
+            <|> try (AMul pos <$ string "*" <* spaces)
+            <|> try (ADiv pos <$ string "/" <* spaces)
+            <|> try (ABand pos <$ string "&" <* spaces)
+            <|> try (ABor pos <$ string "|" <* spaces)
+            <|> try (AXor pos <$ string "^" <* spaces)
+            <|> try (AMod pos <$ string "%" <* spaces)
 
-relExpr :: Parser Expr
+relExpr :: Parser AExpr
 relExpr = try (chainl1 binExpr op)
         <|> binExpr where
-    op = try (Or <$ string "||" <* spaces)
-            <|> try (And <$ string "&&" <* spaces)
-            <|> try (Ge <$ string ">=" <* spaces)
-            <|> try (Le <$ string "<=" <* spaces)
-            <|> try (Eq <$ string "==" <* spaces)
-            <|> try (Ne <$ string "!=" <* spaces)
-            <|> try (Gt <$ string ">" <* spaces)
-            <|> try (Lt <$ string "<" <* spaces)
+    op = do
+        pos <- getPosition
+        try (AOr pos <$ string "||" <* spaces)
+            <|> try (AAnd pos <$ string "&&" <* spaces)
+            <|> try (AGe pos <$ string ">=" <* spaces)
+            <|> try (ALe pos <$ string "<=" <* spaces)
+            <|> try (AEq pos <$ string "==" <* spaces)
+            <|> try (ANe pos <$ string "!=" <* spaces)
+            <|> try (AGt pos <$ string ">" <* spaces)
+            <|> try (ALt pos <$ string "<" <* spaces)
 
 
-primExpr :: Parser Expr
+primExpr :: Parser AExpr
 primExpr = try inExpr
-        <|> try (FunE <$> funcCall)
+        <|> try (annotate AFunE (<$> funcCall))
         <|> try intExpr
         <|> try charExpr
         <|> try varExpr
         <|> try (parend relExpr)
 
-prefixExpr :: Parser Expr
-prefixExpr = try (Neg <$> (string "-" *> primExpr))
-        <|> try (No <$> (string "!" *> primExpr))
-        <|> try (Lno <$> (string "~" *> primExpr))
-        <|> try (Dref <$> (string "*" *> primExpr))
-        <|> try (RefE <$> (string "&" *> var))
+prefixExpr :: Parser AExpr
+prefixExpr = try (annotate ANeg (<$> (string "-" *> primExpr)))
+        <|> try (annotate ANo (<$> (string "!" *> primExpr)))
+        <|> try (annotate ALno (<$> (string "~" *> primExpr)))
+        <|> try (annotate ADref (<$> (string "*" *> primExpr)))
+        <|> try (annotate ARefE (<$> (string "&" *> var)))
         <|> try postfixExpr
 
-postfixExpr :: Parser Expr
+postfixExpr :: Parser AExpr
 postfixExpr = try (do
+        pos <- getPosition
         l <- primExpr
         r <- brackd relExpr
-        return $ Dref (Add l r))
+        return $ ADref pos (AAdd pos l r))
         <|> try primExpr
 
-expr :: Parser Expr
-expr = try (Str <$> dquoted (many cChar) <* spaces)
+expr :: Parser AExpr
+expr = try (annotate AStr (<$> (dquoted (many cChar) <* spaces)))
     <|> try relExpr
 
 -- statements
 
-statement :: Parser Stat
+statement :: Parser AStat
 statement = try outS <* spaces
         <|> try ifElseS <* spaces
         <|> try whileS <* spaces
         <|> try returnStat <* spaces
         <|> try declStat <* spaces
         <|> try assignStat <* spaces
-        <|> try (FuncCallS <$> funcCall <* spaces <* char ';' <* spaces)
-        <|> try (Break <$ string "break" <* spaces <* char ';' <* spaces)
+        <|> try (annotate AFuncCallS (<$> (funcCall <* spaces <* char ';' <* spaces)))
+        <|> try (annotate ABreak (<$ (string "break" <* spaces <* char ';' <* spaces)))
 
-returnStat :: Parser Stat
-returnStat = ReturnS <$> (string "return" *> spaces *> relExpr <* spaces <* char ';')
+returnStat :: Parser AStat
+returnStat = annotate AReturnS (<$> (string "return" *> spaces *> relExpr <* spaces <* char ';'))
 
-assignStat :: Parser Stat
-assignStat = AssignS <$> relExpr <* spaces <*> (char '=' *> spaces *> relExpr <* char ';')
+assignStat :: Parser AStat
+assignStat = do
+        pos <- getPosition
+        AAssignS pos <$> relExpr <* spaces <*> (char '=' *> spaces *> relExpr <* char ';')
 
-varDecl :: Parser VarDecl
+varDecl :: Parser AVarDecl
 varDecl = do
+    pos <- getPosition
     typ <- try (U32 <$ string "int" <* spaces)
             <|> try (U8 <$ string "char" <* spaces)
     ptrs <- many (spaces *> string "*" *> spaces)
     v <- var
     a <- arr typ
     spaces
-    return $ VarDecl (ptr ptrs a) v where
+    return $ AVarDecl pos (ptr ptrs a) v where
             arr t = try (Arr <$> brackd intLiteral <*> arr t)
                 <|> try (Arr 0 <$ string "[" <* spaces <* string "]" <*> arr t)
                 <|> return t
             ptr (x:xs) t = ptr xs (Ptr t)
             ptr [] t = t
 
-declStat :: Parser Stat
+declStat :: Parser AStat
 declStat = do
     v <- varDecl
     spaces
     case v of
-        (VarDecl (Arr _ _) _) -> try (arrDeclInit v)
+        (AVarDecl _ (Arr _ _) _ ) -> try (arrDeclInit v)
                                 <|> try (arrDeclNoInit v)
         _ -> try (varDeclInit v)
             <|> try (varDeclNoInit v)
 
-varDeclInit :: VarDecl -> Parser Stat
-varDeclInit x = VarDeclS x <$> (string "=" *> spaces *> relExpr <* spaces <* string ";")
+varDeclInit :: AVarDecl -> Parser AStat
+varDeclInit x = do
+        pos <- getPosition
+        AVarDeclS pos x <$> (string "=" *> spaces *> relExpr <* spaces <* string ";")
 
-varDeclNoInit:: VarDecl -> Parser Stat
-varDeclNoInit x = VarDeclS x (IntE 0) <$ spaces <* string ";"
+varDeclNoInit:: AVarDecl -> Parser AStat
+varDeclNoInit x = do
+        pos <- getPosition
+        AVarDeclS pos x (AIntE pos 0) <$ spaces <* string ";"
 
-arrDeclInit :: VarDecl -> Parser Stat
-arrDeclInit x = try (ArrDeclS x <$> (string "=" *> spaces *> strLiteral) <* spaces <* string ";")
-        <|> try (ArrDeclS x <$> (string "=" *> spaces *> braced (relExpr `sepBy` (char ',' <* spaces)) <* spaces <* string ";"))
+arrDeclInit :: AVarDecl -> Parser AStat
+arrDeclInit x = do
+        pos <- getPosition
+        _parseArr pos where
+                _parseArr pos = try (AArrDeclS pos x <$> (string "=" *> spaces *> strLiteral) <* spaces <* string ";")
+                        <|> try (AArrDeclS pos x <$> (string "=" *> spaces *> braced (relExpr `sepBy` (char ',' <* spaces)) <* spaces <* string ";"))
+        
 
-arrDeclNoInit:: VarDecl -> Parser Stat
-arrDeclNoInit x = ArrDeclS x [] <$ spaces <* string ";"
+arrDeclNoInit:: AVarDecl -> Parser AStat
+arrDeclNoInit x = do
+        pos <- getPosition
+        AArrDeclS pos x [] <$ spaces <* string ";"
 
-ifElseS :: Parser Stat
-ifElseS = IfS <$> (string "if" *> spaces *> parend relExpr <* spaces) <*> braced (many statement)
+ifElseS :: Parser AStat
+ifElseS = do
+        pos <- getPosition
+        AIfS pos <$> (string "if" *> spaces *> parend relExpr <* spaces) <*> braced (many statement)
 
-whileS :: Parser Stat
-whileS = WhileS <$> (string "while" *> spaces *> parend relExpr <* spaces) <*> braced (many statement)
-outS :: Parser Stat
-outS = Out <$> (string "outb" *> spaces *> parend relExpr <* spaces <* char ';')
+whileS :: Parser AStat
+whileS = do
+        pos <- getPosition
+        AWhileS pos <$> (string "while" *> spaces *> parend relExpr <* spaces) <*> braced (many statement)
+
+outS :: Parser AStat
+outS = annotate AOut (<$> (string "outb" *> spaces *> parend relExpr <* spaces <* char ';'))
 
 -- external declarations
 
-extDecl :: Parser ExtDecl
+extDecl :: Parser AExtDecl
 extDecl = funcDefn
 
-funcDefn :: Parser ExtDecl
-funcDefn = FuncDefn <$> cType <*> identifier <*> parend (varDecl `sepBy` (char ',' <* spaces)) <* spaces <*> braced (many statement)
+funcDefn :: Parser AExtDecl
+funcDefn = do
+        pos <- getPosition
+        AFuncDefn pos <$> cType <*> identifier <*> parend (varDecl `sepBy` (char ',' <* spaces)) <* spaces <*> braced (many statement)
 
-funcDecl :: Parser ExtDecl
-funcDecl = FuncDecl <$> cType <*> identifier <*> parend (varDecl `sepBy` (char ',' <* spaces)) <* spaces <* char ';'
+funcDecl :: Parser AExtDecl
+funcDecl = do
+        pos <- getPosition
+        AFuncDecl pos <$> cType <*> identifier <*> parend (varDecl `sepBy` (char ',' <* spaces)) <* spaces <* char ';'
 
 -- program
 
-program :: Parser Program
-program = Program <$> many1 (spaces *> extDecl <* spaces)
+annAST :: Parser AnnAst
+annAST = AAst <$> many1 (spaces *> extDecl <* spaces)
