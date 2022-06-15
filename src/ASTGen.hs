@@ -27,7 +27,7 @@ import Text.Parsec
 import Text.Parsec.Expr (buildExpressionParser)
 import CType ( CType(..) )
 import Var ( Var(..) )
-import AnnAst
+import AnnAST
     ( AExpr(..),
       AStat(..),
       AVarDecl(..),
