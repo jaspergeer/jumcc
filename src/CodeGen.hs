@@ -1,21 +1,20 @@
 {-
- - AsmGen.hs
+ - CodeGen.hs
  - Author: Jasper Geer, jasper.geer@gmail.com
  - Copyright (c) 2022 Jasper Geer
  - Licensed under the MIT license
  -}
 
-module AsmGen where
-import ASTGen
-    ( CType(..),
-      Var(Var),
-      Expr(Band, IntE, CharE, VarE, In, FunE, Neg, Lno, No, Dref, Le, Lt,
-           Ge, Gt, Eq, Ne, Or, And, Sub, Add, Div, Mul, Bor, Xor, Mod, Str, RefE),
+module CodeGen where
+import AST
+    ( Expr(..),
       Stat(..),
       VarDecl(..),
       FuncCall(..),
-      ExtDecl(..),
-      Program(..) )
+      ExtDecl(FuncDefn),
+      AST(..) )
+import CType ( CType(..), dref )
+import Var ( Var(Var) )
 import StackSim
     ( StackSim(..),
       StkFrame(StkFrame),
@@ -27,7 +26,6 @@ import StackSim
       stkSimPopFrame,
       stkSimPush,
       stkSimPop )
-import GHC.Char ()
 import Data.Char (ord)
 import Text.Parsec ( ParseError )
 
@@ -45,9 +43,9 @@ import Text.Parsec ( ParseError )
 
 data AsmProg = AsmProg String [String] StackSim Int deriving Show
 
--- generate asm for a program
-visitProgram :: Program -> String -> AsmProg
-visitProgram (Program extdecls) pname = case visitExtDeclList (AsmProg pname
+-- generate asm for a AST
+visitAST :: AST -> String -> AsmProg
+visitAST (AST extdecls) pname = case visitExtDeclList (AsmProg pname
                                         [".section init",
                                          ".zero r0",
                                          ".temps r5,r6,r7",
@@ -204,7 +202,7 @@ _vexpr prog (Dref addr) = case _vexpr prog addr of
     (AsmProg pname asm sim label) -> case AsmProg pname (asm
                                         ++ ["pop r4 off stack r2"]
                                         ++ ["r4 := m[r0][r4]"])
-                                        (stkSimPush (stkSimPop sim) (Var ".val", dref (stkSimPeekType sim))) label of
+                                        (stkSimPush (stkSimPop sim) (Var ".val", CType.dref (stkSimPeekType sim))) label of
                                             prog1 -> enforceTypeSize prog1
 
 -- relational operations
