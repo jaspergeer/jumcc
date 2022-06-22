@@ -8,8 +8,7 @@
  * Licensed under the MIT license.
  */
 
-// REQUIRES stdlib.umc
-
+#include "stdlib.umc"
 
 int main() {
     char a_str[11];

@@ -7,7 +7,7 @@
  * Licensed under the MIT license.
  */
 
-// REQUIRES stdlib.umc
+#include "stdlib.umc"
 
 int main() {
     char num_str[11];
