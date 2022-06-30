@@ -3,7 +3,7 @@ import CType ( CType )
 import Var ( Var )
 import Text.Parsec ( SourcePos )
 
-newtype AnnAst = AAst [AExtDecl] deriving Show
+newtype AnnAST = AnnAST [AExtDecl] deriving Show
 data AExtDecl = AFuncDefn SourcePos CType String [AVarDecl] [AStat] 
             | AFuncDecl SourcePos CType String [AVarDecl] 
             deriving Show
@@ -48,4 +48,8 @@ data AExpr = AIntE SourcePos Int
         | AMod SourcePos AExpr AExpr 
         | AStr SourcePos String 
         | AIn SourcePos
+        | ACastE SourcePos CType AExpr
         deriving Show
+
+concatAST :: AnnAST -> AnnAST -> AnnAST
+concatAST (AnnAST x) (AnnAST y) = AnnAST (x ++ y)
