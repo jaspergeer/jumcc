@@ -1,5 +1,5 @@
 # jumcc
-`jumcc` is a compiler for a small C-like language I created, that targets the umasm language detailed [here](https://www.cs.tufts.edu/comp/40-2011f/handouts/umasm.html) used to teach assembly programming to students in Tufts University's CS40 course.
+`jumcc` is a compiler for a small C-like language I created, that targets the [umasm](https://www.cs.tufts.edu/comp/40-2011f/handouts/umasm.html) language which is used to teach assembly programming to students in Tufts University's CS40 course.
 
 ## Installation
 To compile `jumcc` from source, install [Stack](https://docs.haskellstack.org/en/stable/install_and_upgrade/).
