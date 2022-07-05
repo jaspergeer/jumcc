@@ -6,7 +6,7 @@ import ASTUtils (Identifier)
 
 data SymbTable = SymbTable {table :: Map.Map Identifier CType,
                             parent :: SymbTable}
-                | SymbTableNull
+                | SymbTableNull deriving Show
 
 symbTablePushScope :: SymbTable -> SymbTable
 symbTablePushScope = SymbTable Map.empty
