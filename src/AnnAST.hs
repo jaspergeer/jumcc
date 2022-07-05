@@ -4,10 +4,10 @@ import Text.Parsec ( SourcePos )
 import ASTUtils ( Identifier )
 
 newtype AnnAST = AnnAST [AExtDecl] deriving Show
-data AExtDecl = AFuncDefn SourcePos CType String [AVarDecl] [AStat] 
-            | AFuncDecl SourcePos CType String [AVarDecl] 
+data AExtDecl = AFuncDefn SourcePos CType Identifier [AVarDecl] [AStat] 
+            | AFuncDecl SourcePos CType Identifier [AVarDecl] 
             deriving Show
-data AFuncCall = AFuncCall SourcePos String [AExpr] 
+data AFuncCall = AFuncCall SourcePos Identifier [AExpr] 
                 deriving Show
 data AVarDecl = AVarDecl SourcePos CType Identifier 
                 deriving Show

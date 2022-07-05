@@ -4,9 +4,9 @@ import CType ( CType )
 import ASTUtils ( Identifier ) 
 
 newtype AST = AST [ExtDecl] deriving Show
-data ExtDecl = FuncDefn CType String [VarDecl] [Stat]
-            | FuncDecl CType String [VarDecl] deriving Show
-data FuncCall = FuncCall String [Expr] deriving Show
+data ExtDecl = FuncDefn CType Identifier [VarDecl] [Stat]
+            | FuncDecl CType Identifier [VarDecl] deriving Show
+data FuncCall = FuncCall Identifier [Expr] deriving Show
 data VarDecl = VarDecl CType Identifier deriving Show
 data Stat = ReturnS Expr
         | AssignS Expr Expr
