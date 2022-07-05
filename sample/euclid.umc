@@ -10,6 +10,8 @@
 
 #include "stdlib.umc"
 
+int gcd(int a, int b);
+
 int main() {
     char a_str[11];
     char b_str[11];

@@ -9,6 +9,8 @@
 
 #include "stdlib.umc"
 
+int printInt(int i);
+
 int main() {
     char num_str[11];
 
@@ -27,7 +29,7 @@ int main() {
     int p = 2;
     while (p * p <= num) {
         if (prime[p]) {
-            int i = p;
+            i = p;
             while (i <= num) {
                 prime[i] = 0;
                 i = i + p;
