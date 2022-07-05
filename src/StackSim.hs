@@ -62,3 +62,4 @@ typeSize Char = 1
 typeSize Int = 1
 typeSize (Arr n typ) = n
 typeSize (Func _ _) = 1
+typeSize Void = 1

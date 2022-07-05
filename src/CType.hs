@@ -7,7 +7,7 @@ data CType = Int
             elemType :: CType}
     | Func {paramTypes :: [CType],
             retType :: CType}
-
+    | Void
 instance Show CType where
     show typ = case typ of
         Int -> "int"
@@ -18,6 +18,7 @@ instance Show CType where
         Arr s t@(Ptr _) -> "(" ++ show t ++ ") [" ++ show s ++ "]"
         Arr s t -> show t  ++ " [" ++ show s ++ "]"
         Func p t -> show t ++ "(*)(" ++ showTypeList p ++ ")"
+        Void -> "void"
         where showTypeList [x] = show x
               showTypeList (x:xs) = show x ++ "," ++ showTypeList xs
               showTypeList [] = ""
