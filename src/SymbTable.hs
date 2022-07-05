@@ -1,34 +1,26 @@
 module SymbTable where
 
-import ASTGen ( CType )
+import CType ( CType )
+import qualified Data.Map as Map
+import ASTUtils (Identifier)
 
-data SymbTable = SymbTable [Entry] SymbTable | SymbTableEmpty
-data Entry = Var String CType | Func String [CType] CType
-newtype SymbTableError = SymbTableError String
-
-symbTableAdd :: SymbTable -> Entry -> SymbTable
-symbTableAdd (SymbTable symbs parent) x = SymbTable (x:symbs) parent
-symbTableAdd SymbTableEmpty x = error "Can't add symbol to empty table"
+data SymbTable = SymbTable {table :: Map.Map Identifier CType,
+                            parent :: SymbTable}
+                | SymbTableNull
 
 symbTablePushScope :: SymbTable -> SymbTable
-symbTablePushScope = SymbTable []
+symbTablePushScope = SymbTable Map.empty
 
 symbTablePopScope :: SymbTable -> SymbTable
 symbTablePopScope (SymbTable _ x) = x
-symbTablePopScope SymbTableEmpty = error "Parent scope does not exist"
+symbTablePopScope SymbTableNull = error "fatal error: parent scope does not exist"
 
-symbTableQueryType :: SymbTable -> String -> CType
-symbTableQueryType (SymbTable [] parent) x = symbTableQueryType parent x
-symbTableQueryType (SymbTable ((Var id typ):ys) parent) x = 
-    if x == id then typ else symbTableQueryType (SymbTable ys parent) x
-symbTableQueryType (SymbTable ((Func id _ typ):ys) parent) x = 
-    if x == id then typ else symbTableQueryType (SymbTable ys parent) x
-symbTableQueryType SymbTableEmpty x = error ("Symbol " ++ x ++ " does not exist")
+symbTableEmpty :: SymbTable
+symbTableEmpty = SymbTable Map.empty SymbTableNull
 
-symbTableQueryParams :: SymbTable -> String -> [CType]
-symbTableQueryParams (SymbTable [] parent) x = symbTableQueryParams parent x
-symbTableQueryParams (SymbTable ((Var id typ):ys) parent) x = 
-    if x == id then error ("Identifier " ++ x  ++ " refers to a function, not a variable") else symbTableQueryParams (SymbTable ys parent) x
-symbTableQueryParams (SymbTable ((Func id params _):ys) parent) x = 
-    if x == id then params else symbTableQueryParams (SymbTable ys parent) x
-symbTableQueryParams SymbTableEmpty x = error ("Symbol " ++ x ++ " does not exist")
+symbTableQuery :: Identifier -> SymbTable -> Maybe CType
+symbTableQuery id st = Map.lookup id $ table st
+
+symbTableInsert :: Identifier -> CType -> SymbTable -> SymbTable
+symbTableInsert id typ (SymbTable t p) = SymbTable (Map.insert id typ t) p
+symbTableInsert _ _ _ = error "fatal error: can't insert into empty symbol table"
