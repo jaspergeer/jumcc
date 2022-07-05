@@ -19,7 +19,10 @@ symbTableEmpty :: SymbTable
 symbTableEmpty = SymbTable Map.empty SymbTableNull
 
 symbTableQuery :: Identifier -> SymbTable -> Maybe CType
-symbTableQuery id st = Map.lookup id $ table st
+symbTableQuery id (SymbTable t p) = case Map.lookup id t of
+  Nothing -> symbTableQuery id p
+  Just ct -> Just ct
+symbTableQuery _ SymbTableNull = Nothing
 
 symbTableInsert :: Identifier -> CType -> SymbTable -> SymbTable
 symbTableInsert id typ (SymbTable t p) = SymbTable (Map.insert id typ t) p
