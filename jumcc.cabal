@@ -6,7 +6,7 @@ cabal-version: 1.12
 
 name:           jumcc
 version:        0.1.0.0
-description:    Jasper's UM 'C' Compiler
+description:    Compiler from C-like language targeting 'umasm' assembly
 homepage:       https://github.com/jaspergeer/jumcc#readme
 bug-reports:    https://github.com/jaspergeer/jumcc/issues
 author:         jaspergeer
