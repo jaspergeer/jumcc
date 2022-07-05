@@ -97,8 +97,10 @@ visitStat prog (ReturnS exp) = case visitExpr prog exp of
                                         ++ ["goto r4"]) sim1 label
 visitStat prog (VarDeclS (VarDecl typ var) init) = case visitExpr prog init of
     (AsmProg pname asm sim label) -> AsmProg pname asm (stkSimPush (stkSimPop sim) (var, typ)) label
-visitStat (AsmProg pname asm sim label) (ArrDeclS (VarDecl (Arr size typ) var) []) = AsmProg pname (asm ++ ["r2 := r2 - " ++ show size] ++ ["r4 := r2"]
-                                            ++ ["push r4 on stack r2"]) (stkSimPush sim (var, Arr size typ)) label
+visitStat (AsmProg pname asm sim label) (ArrDeclS (VarDecl (Arr size typ) var) []) =
+    AsmProg pname (asm ++ ["r2 := r2 - " ++ show size]
+                       ++ ["r4 := r2"]
+                       ++ ["push r4 on stack r2"]) (stkSimPush sim (var, Arr size typ)) label
 visitStat prog (ArrDeclS (VarDecl (Arr size typ) var) init) = case pushExprSeq prog init of
     (AsmProg pname asm sim label) -> AsmProg pname (asm ++ ["r2 := r2 - " ++ show (length init - size)] ++ ["r4 := r2"]
                                             ++ ["push r4 on stack r2"]) (stkSimPush sim (var, Arr (length init - size) typ)) label
@@ -380,7 +382,7 @@ _vexpr prog (Band x y) = case _vexpr prog x of
                                                 (AsmProg pname asm1 sim1 label1) -> case evalTypes (stkSimPeekType sim) (stkSimPeekType (stkSimPop sim)) of
                                                     typ -> case stkSimPush sim1 (".sub", typ) of
                                                         sim2 -> enforceTypeSize (AsmProg pname asm1 sim2 label)
-_vexpr _ _ = error "fatal error: not a valid expression"
+_vexpr prog (CastE _ exp) = _vexpr prog exp
 
 -- data type sizes are enforced in a lazy manner
 -- assumes r4 contains the value we are enforcing type size for
