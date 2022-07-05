@@ -21,6 +21,17 @@ import Text.Parsec
 import Text.Parsec.String (Parser)
 import Data.Foldable (find)
 import Text.Parsec.Pos (newPos, initialPos)
+import Control.Exception (throw, Exception)
+
+data PreProcError = NoSuchFile String
+                    | BadFormat String
+                    | Custom String
+
+instance Show PreProcError where
+    show (NoSuchFile f) = f ++ ": no such file or directory"
+    show (BadFormat f) = "Filename \"" ++ f ++ "\" does not end with suffix .umc"
+    show (Custom s) = s
+instance Exception PreProcError
 
 preProc :: String -> [(String, String)] -> Parser String
 preProc srcName headers = do
@@ -45,13 +56,16 @@ multiLineComment = do
 
 include :: [(String, String)] -> Parser String
 include headers = do
-    key <- string "#include" *> spaces *> between (char '"') (char '"') (many (noneOf "\"")) <* spaces
+    fname <- string "#include" *> spaces *> between (char '"') (char '"') (many (noneOf "\"")) <* spaces
+    key <- case reverse fname of
+        ('c':'m':'u':'.':xs) -> pure $ reverse xs
+        _ -> throw $ BadFormat fname
     pos1 <- getPosition
     text <- (case find (\(x, y) -> x == key) headers of
-        Nothing -> error (key ++ ": no such file or directory")
+        Nothing -> throw $ NoSuchFile fname
         Just (_, y) -> case parse (preProc key headers) "" y of
             Right a -> return a
-            Left b -> error (show b))
+            Left b -> throw (Custom $ show b))
     return $ sourcePosDirectiveFrom (initialPos key) ++ text ++ sourcePosDirectiveFrom pos1
 
 sourcePosDirectiveFrom :: SourcePos -> String
