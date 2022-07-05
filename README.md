@@ -12,22 +12,36 @@ stack install
 `stack setup` will download the ghc compiler if you don't have it and `stack install` will install the `jumcc` executable to `~\.local\bin` which you should add to your `PATH`.
 
 ## Usage
-By default, `jumcc` takes the name of a um-C source file `[name].umc` and creates a file called `[name].ums` to which it sends output.
+By default, `jumcc` takes the name of a primary um-C source file `[name].umc` and any number of additional source files and creates a file called `[name].ums` to which it sends output.
 ```
-jumcc src.umc
+jumcc src.umc ...
 ```
 To specify an output file name, use the -o option.
 ```
-jumcc -o out.ums src.umc
+jumcc -o out.ums src.umc ...
 ```
-To generate an executable `.um` binary, the resulting `.ums` file must be linked with `umcrtn.ums` and `umcrt1.ums`, which are found in the `umcrt` directory, using the UM Macro Assembler `umasm` program (as far as I know this is only available to those with a Tufts EECS account). I have also supplied a toy standard library in the `stdlib` directory that you may compile which implements simple versions of `puts` and `gets`.
+To generate an executable `.um` binary, the resulting `.ums` file must be linked with `umcrtn.ums` and `umcrt1.ums`, which are found in the `umcrt` directory, using the UM Macro Assembler `umasm` program (as far as I know this is only available to those with a Tufts EECS account). I have also supplied a toy standard library in the `sample` directory that you may compile which implements simple versions of `puts` and `gets`.
 ```
 umasm umcrtn.ums stdlib.ums [your-file].ums ... umcrt1.ums
 ```
-I've included two sample programs in the `sample` directory that you can compile and assemble/link. Both depend on `stdlib.umc`
+I've included two additional sample programs in the `sample` directory that you can compile and assemble/link. Both depend on `stdlib.umc`
 
 ## um-C
-um-C is nearly a strict subset of C with a few minor differences. However, it should be relatively easy to modify a um-C program to be compiled by gcc or clang. I haven't written a grammar yet but here is a general overview of the language:
+um-C is intended to be a strict subset of C. I haven't written a grammar yet but here is a general overview of the language:
+
+The `include` directive instructs the preprocessor to insert the contents of another file into the source code at that point. The name of the file must be enclosed with `"`:
+```
+#include "stdlib.umc"
+````
+The preprocessor also supports single-line and multi-line comments:
+```
+// I am a single-line comment
+
+/*
+ * I am a multi-
+ * line comment
+ */
+```
 
 There are 2 primitive types: `char` and `int`. Both are unsigned and stored in memory as 32-bit values but `char` values are truncated to between 0 and 255 when accessed. These can be declared like so:
 ```
