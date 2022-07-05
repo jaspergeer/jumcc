@@ -19,6 +19,14 @@ import GHC.Base (IO(IO))
 import GHC.IO.Handle (hGetContents)
 import DeAnn (deAnnotate)
 import TypeChecker (typeCheck)
+import Control.Exception (throw, Exception, catch)
+
+newtype CompilException = CompilException String
+
+instance Show CompilException where
+  show (CompilException s) = s
+
+instance Exception CompilException
 
 main :: IO ()
 main = do
@@ -32,30 +40,32 @@ main = do
             printAsm result "out.ums"
         _ -> putStrLn "Usage: jumcc [-o OUT-FILE] IN-FILE ..."
 
-compile :: String -> [String] -> IO AsmProg
+compile :: String -> [String] ->  IO AsmProg
 compile inName headerNames = case reverse inName of
             ('c':'m':'u':'.':xs) -> do
                 file <- openFile inName ReadMode
                 src <- hGetContents file
                 headers <- getHeaders headerNames
                 preProcd <- (case parse (preProc inName headers) "" src of
-                    Right a -> return a
-                    Left b -> error (show b))
+                    Left a -> throw $ CompilException $ show a
+                    Right b -> return b)
                 aAST <- (case parse annAST "" preProcd of
-                    Left a -> error (show a)
+                    Left a -> throw $ CompilException $ show a
                     Right b -> return b)
                 ast <- (case typeCheck aAST of
-                    Just a -> error (show a)
+                    Just a -> throw $ CompilException $ show a
                     Nothing -> pure $ deAnnotate aAST)
-                return $ visitAST ast inName
-            _ -> error "source files should have suffix .umc"
+                return $ visitAST ast (reverse xs)
+            _ -> throw $ CompilException "source files should have suffix .umc"
 
 getHeaders :: [String] -> IO [(String, String)]
 getHeaders (x:xs) = do
     file <- openFile x ReadMode
     src <- hGetContents file
     rest <- getHeaders xs
-    return $ (x, src) : rest
+    case reverse x of
+        ('c':'m':'u':'.':xs) -> return $ (reverse xs, src) : rest
+        _ -> throw $ CompilException "source files should have suffix .umc"
 getHeaders [] = return []
 
 printAsm :: AsmProg -> String -> IO()
