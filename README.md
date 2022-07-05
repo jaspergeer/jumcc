@@ -27,7 +27,7 @@ umasm umcrtn.ums stdlib.ums [your-file].ums ... umcrt1.ums
 I've included two additional sample programs in the `sample` directory that you can compile and assemble/link. Both depend on `stdlib.umc`
 
 ## um-C
-um-C is intended to be a strict subset of C. I haven't written a grammar yet but here is a general overview of the language:
+um-C is intended to be a strict subset of C. It is statically typed, enforced by a type checker. I haven't written a grammar yet but here is a general overview of the language:
 
 The `include` directive instructs the preprocessor to insert the contents of another file into the source code at that point. The name of the file must be enclosed with `"`:
 ```
