@@ -1,11 +1,10 @@
-{-# OPTIONS_GHC -Wno-incomplete-patterns #-}
 module TypeChecker where
 
-import SymbTable ( SymbTable (SymbTableNull, table), symbTablePushScope, symbTableEmpty, symbTableQuery, symbTableInsert )
-import AnnAST (AnnAST, AExtDecl (AFuncDefn), AExpr (AIntE, ACastE, ACharE, AAdd, ASub, AMul, ADiv, AMod, ABand, ABor, AXor, AGe, ALe, AEq, ANe, AGt, ALt, AOr, AAnd, AVarE, ARefE, ADref, AFunE, ANeg, ALno, ANo, AStr, AIn), AFuncCall (AFuncCall), AStat (AReturnS, AAssignS, AVarDeclS, AArrDeclS, AFuncCallS), AVarDecl (AVarDecl))
+import SymbTable ( SymbTable (SymbTableNull, table), symbTablePushScope, symbTableEmpty, symbTableQuery, symbTableInsert, symbTablePopScope )
+import AnnAST (AnnAST (AnnAST), AExtDecl (AFuncDefn, AFuncDecl), AExpr (AIntE, ACastE, ACharE, AAdd, ASub, AMul, ADiv, AMod, ABand, ABor, AXor, AGe, ALe, AEq, ANe, AGt, ALt, AOr, AAnd, AVarE, ARefE, ADref, AFunE, ANeg, ALno, ANo, AStr, AIn), AFuncCall (AFuncCall), AStat (AReturnS, AAssignS, AVarDeclS, AArrDeclS, AFuncCallS, AIfS, AWhileS, AOut, ABreak), AVarDecl (AVarDecl))
 import Control.Monad.Reader (Reader, MonadReader (ask, local), runReader)
 import Text.Parsec.Pos (initialPos, SourcePos)
-import CType (CType (Int, Char, Ptr, Func, paramTypes, dref, Arr))
+import CType (CType (Int, Char, Ptr, Func, paramTypes, dref, Arr, Void))
 import Control.Monad.Except (ExceptT (ExceptT), MonadError (throwError), Except, runExceptT)
 import ASTUtils (Identifier)
 
@@ -19,30 +18,64 @@ data Message = Expect CType CType
             | CantDeref CType
             | NotCallable Identifier
             | BadExprNum
-            | Redefinition Identifier
+            | ReDef Identifier
+            | BadDef Identifier
 
 instance Show TCError where
-    show err = show (errorPos err) ++ ":" ++ showMessage (message err)
+    show err = show (errorPos err) ++ " : " ++ showMessage (message err)
 
 showMessage :: Message -> String
 showMessage msg = case msg of
     Expect t1 t2 -> "Expected value of type " ++ show t1 ++ " but got a value of type " ++ show t2 ++ " instead"
     InvalidBinOps t1 t2 op -> "Invalid operands to binop '" ++ op ++ "': " ++ show t1 ++ " and " ++ show t2
     InvalidRelOps t1 t2 op -> "Invalid operands to relop '" ++ op ++ "': " ++ show t1 ++ " and " ++ show t2
-    InvalidSymbol sym -> "No definition of symbol '" ++ sym ++ "'"
+    InvalidSymbol sym -> "Implicit declaration of symbol '" ++ sym ++ "'"
     CantDeref typ -> "Can't dereference value of type " ++ show typ
     NotCallable n -> "Called object '" ++ n ++ "' is not a function or function pointer"
     BadExprNum -> "Incorrect number of elements in comma-seperated list of expressions"
-    Redefinition n -> "Redefinition of symbol '" ++ n ++ "'"
+    ReDef n -> "Redefinition of symbol '" ++ n ++ "'"
+    BadDef n -> "Incorrect return type or parameters in definition of function '" ++ n ++ "'"
 
 typeCheck :: AnnAST -> Maybe TCError
-typeCheck x = Nothing
+typeCheck (AnnAST body) = case runExceptT (checkExtDeclList body) of
+    rdr -> case runReader rdr symbTableEmpty of
+      Left te -> Just te
+      Right ct -> Nothing
 
+checkExtDeclList :: [AExtDecl] -> ExceptT TCError (Reader SymbTable) CType
+checkExtDeclList (x:xs) = do
+    checkExtDecl x
+    checkExtDeclList xs
+checkExtDeclList [] = return Void
 
--- checkExtDeclList :: [AExtDecl] -> SymbTable -> [ExtDecl]
--- checkExtDeclList (x:xs) st = case checkExtDecl x st of
---     extd -> extd : (checkExtDeclList )
--- checkExtDeclList [] _ = []
+checkExtDecl :: AExtDecl -> ExceptT TCError (Reader SymbTable) CType
+checkExtDecl (AFuncDefn pos ret id params body) = do
+    checkExtDecl (AFuncDecl pos ret id params)
+    local symbTablePushScope ask
+    checkStatList (toVarDeclList params)
+    checkStatList body
+    local symbTablePopScope ask
+    return Void where
+        toVarDeclList (decl@(AVarDecl pos _ _):xs) = AVarDeclS pos decl (AIntE pos 0) : toVarDeclList xs
+        toVarDeclList [] = []
+checkExtDecl (AFuncDecl pos ret id params) = do
+    let ftype = Func (toTypeList params) ret
+    st <- ask
+    case symbTableQuery id st of
+      Nothing -> local (symbTableInsert id ftype) ask
+      Just ct -> if ftype == ct then ask else throwError $ TCError pos $ BadDef id
+    return Void where
+        toTypeList ((AVarDecl _ typ _):xs) = typ : toTypeList xs
+        toTypeList [] = []
+
+checkStatList :: [AStat] -> ExceptT TCError (Reader SymbTable) CType
+checkStatList (x:xs) = do
+    checkStat x
+    checkStatList xs
+checkStatList [] = do
+    st <- ask
+    error (show st)
+    return Void
 
 checkStat :: AStat -> ExceptT TCError (Reader SymbTable) CType
 checkStat (AReturnS pos exp) = checkExpr exp
@@ -50,25 +83,52 @@ checkStat (AAssignS pos exp1 exp2) = do
     typ1 <- checkExpr exp1
     typ2 <- checkExpr exp2
     if typ1 == typ2 then return typ1 else throwError $ TCError pos $ Expect typ1 typ2
-checkStat (AVarDeclS _ (AVarDecl pos typ id) exp) = do
+checkStat (AVarDeclS _ (AVarDecl pos typ id) (AIntE _ 0)) = do
     st <- ask
+    case symbTableQuery id st of
+      Nothing -> local (symbTableInsert id typ) ask
+      _ -> throwError $ TCError pos $ ReDef id
+    return Void
+checkStat (AVarDeclS _ (AVarDecl pos typ id) exp) = do
     etyp <- checkExpr exp
-    case symbTableQuery id st of 
-      Nothing -> local (pure $ symbTableInsert id typ st) (pure st)
-      _ -> throwError $ TCError pos $ Redefinition id
-    if etyp == typ then return Int else throwError $ TCError pos $ Expect typ etyp
+    st <- ask
+    case symbTableQuery id st of
+      Nothing -> local (symbTableInsert id typ) ask
+      _ -> throwError $ TCError pos $ ReDef id
+    if etyp == typ then return Void else throwError $ TCError pos $ Expect typ etyp
+checkStat (AArrDeclS _ (AVarDecl pos typ@(Arr size elemType) id) []) = do
+    st <- ask
+    case symbTableQuery id st of
+      Nothing -> local (symbTableInsert id typ) ask
+      _ -> throwError $ TCError pos $ ReDef id
+    return Void
 checkStat (AArrDeclS _ (AVarDecl pos typ@(Arr size elemType) id) arr) = do
     st <- ask
     elemTypes <- checkExprList pos arr (replicate size elemType)
-    case symbTableQuery id st of 
-      Nothing -> local (pure $ symbTableInsert id typ st) (pure st)
-      _ -> throwError $ TCError pos $ Redefinition id
-    return Int
-checkStat (AFuncCallS pos call) = do
-    return Int
+    case symbTableQuery id st of
+      Nothing -> local (symbTableInsert id typ) ask
+      _ -> throwError $ TCError pos $ ReDef id
+    return Void
+checkStat (AFuncCallS pos call) = checkFuncCall call
+checkStat (AIfS _ cond body) = do
+    checkExpr cond
+    st <- ask
+    local symbTablePushScope ask
+    checkStatList body
+    st <- ask
+    local symbTablePopScope ask
+    return Void
+checkStat (AWhileS _ cond body) = do
+    checkExpr cond
+    checkStatList body
+checkStat (AOut pos exp) = do
+    checkExpr exp
+    return Void
+checkStat (ABreak pos) = return Void
+checkStat _ = error "fatal error: invalid statement"
 
 checkExpr :: AExpr -> ExceptT TCError (Reader SymbTable) CType
-checkExpr (AIntE _ _) = return Int
+checkExpr (AIntE _ _) = return Void
 checkExpr (ACharE _ _) = return Char
 checkExpr (ACastE pos typ exp) = do
     checkExpr exp
@@ -107,16 +167,19 @@ checkExpr (ARefE pos var) = do
     case symbTableQuery var st of
       Nothing -> throwError $ TCError pos $ InvalidSymbol var
       Just typ -> return $ Ptr typ
-checkExpr (AFunE pos1 (AFuncCall pos2 fname args)) = do
-    st <- ask
-    ftype <- case symbTableQuery fname st of
-      Nothing -> throwError $ TCError pos1 $ InvalidSymbol fname
-      Just ct@(Func _ _) -> return ct
-      Just typ -> throwError $ TCError pos1 $ NotCallable fname
-    params <- checkExprList pos2 args $ paramTypes ftype
-    return Int
+checkExpr (AFunE pos1 call) = checkFuncCall call
 checkExpr (AStr pos str) = return $ Ptr Char
 checkExpr (AIn pos) = return Char
+
+checkFuncCall :: AFuncCall -> ExceptT TCError (Reader SymbTable) CType
+checkFuncCall (AFuncCall pos fname args) = do
+    st <- ask
+    ftype <- case symbTableQuery fname st of
+      Nothing -> throwError $ TCError pos $ InvalidSymbol fname
+      Just ct@(Func _ _) -> return ct
+      Just typ -> throwError $ TCError pos $ NotCallable fname
+    params <- checkExprList pos args $ paramTypes ftype
+    return Void
 
 checkExprList :: SourcePos -> [AExpr] -> [CType] -> ExceptT TCError (Reader SymbTable) [CType]
 checkExprList pos (x:xs) (y:ys) = do
@@ -124,7 +187,7 @@ checkExprList pos (x:xs) (y:ys) = do
     typ <- checkExpr x
     if typ == y then return $ typ : rest else throwError $ TCError pos $ Expect y typ
 checkExprList pos [] [] = return []
-checkExprList pos _ _ = throwError $ TCError pos $ BadExprNum
+checkExprList pos _ _ = throwError $ TCError pos BadExprNum
 
 checkBinExpr :: SourcePos -> AExpr -> String -> AExpr -> ExceptT TCError (Reader SymbTable) CType
 checkBinExpr pos exp1 op exp2 = do
