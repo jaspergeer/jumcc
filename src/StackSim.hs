@@ -10,7 +10,10 @@ module StackSim where
 import CType ( CType(..) )
 import ASTUtils (Identifier)
 
-data StkFrame = StkFrame String [(Identifier, Int, CType)] Int deriving Show
+type Offset = Int
+type FrameSize = Int
+
+data StkFrame = StkFrame String [(Identifier, Offset, CType)] FrameSize deriving Show
 newtype StackSim = StackSim [StkFrame] deriving Show
 
 stkSimEmpty :: StackSim
@@ -30,7 +33,7 @@ stkSimQueryType (StackSim stk) = _ssqt stk where
         Just (_,t) -> t
         Nothing -> stkSimQueryType (StackSim xs) v
 
-_frmsrch :: Identifier -> [(Identifier, Int, CType)] -> Maybe (Int, CType)
+_frmsrch :: Identifier -> [(Identifier, Offset, CType)] -> Maybe (Offset, CType)
 _frmsrch x [] = Nothing
 _frmsrch x (y@(key,val,typ):ys) = if x == key then Just (val,typ) else _frmsrch x ys
 
@@ -47,19 +50,17 @@ stkSimPopFrame (StackSim []) = error "fatal error: can't pop frame: stack empty"
 
 stkSimPush :: StackSim -> (Identifier, CType) -> StackSim
 stkSimPush (StackSim (f:fs)) x = StackSim (_spush f x:fs) where
-    _spush (StkFrame n f s) (v, typ) = StkFrame n ((v, 0, typ):map (\(x,y,z) -> (x, y + 1, z)) f) (s + 1)
+    _spush (StkFrame n f s) (v, typ) = StkFrame n ((v, 0, typ):map (\(x,y,z) -> (x, y + typeSize typ, z)) f) (s + typeSize typ)
 stkSimPush (StackSim []) _ = error "fatal error: can't push value: stack empty"
 
 stkSimPop :: StackSim -> StackSim
-stkSimPop (StackSim ((StkFrame n (f:fs) s):stk)) = StackSim (StkFrame n (_spop fs) (s - 1):stk) where
-    _spop ((x, y, z):xs) = (x, y - 1, z):_spop xs
-    _spop [] = []
+stkSimPop (StackSim ((StkFrame n ((_, o, _):fs) s):stk)) = StackSim (StkFrame n (map (\(x,y,z) -> (x,y - o,z)) fs) (s - o):stk)
 stkSimPop (StackSim _) = error "fatal error: can't pop value: stack empty"
 
 typeSize :: CType -> Int
 typeSize (Ptr _) = 1
 typeSize Char = 1
 typeSize Int = 1
-typeSize (Arr n typ) = n
+typeSize (Arr n typ) = n + 1
 typeSize (Func _ _) = 1
 typeSize Void = 1
