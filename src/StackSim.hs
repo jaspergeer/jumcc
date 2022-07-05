@@ -50,11 +50,13 @@ stkSimPopFrame (StackSim []) = error "fatal error: can't pop frame: stack empty"
 
 stkSimPush :: StackSim -> (Identifier, CType) -> StackSim
 stkSimPush (StackSim (f:fs)) x = StackSim (_spush f x:fs) where
-    _spush (StkFrame n f s) (v, typ) = StkFrame n ((v, 0, typ):map (\(x,y,z) -> (x, y + typeSize typ, z)) f) (s + typeSize typ)
+    _spush (StkFrame n f s) (v, typ) = StkFrame n ((v, 0, typ):
+        map (\(x,y,z) -> (x, y + typeSize typ, z)) f) (s + typeSize typ)
 stkSimPush (StackSim []) _ = error "fatal error: can't push value: stack empty"
 
 stkSimPop :: StackSim -> StackSim
-stkSimPop (StackSim ((StkFrame n ((_, o, _):fs) s):stk)) = StackSim (StkFrame n (map (\(x,y,z) -> (x,y - o,z)) fs) (s - o):stk)
+stkSimPop (StackSim ((StkFrame n ((_, _, typ):fs) s):stk)) = StackSim (StkFrame n 
+    (map (\(x,y,z) -> (x, y - typeSize typ, z)) fs) (s - typeSize typ):stk)
 stkSimPop (StackSim _) = error "fatal error: can't pop value: stack empty"
 
 typeSize :: CType -> Int
