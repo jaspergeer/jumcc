@@ -1,5 +1,5 @@
 # jumcc
-`jumcc` is a compiler for um-C, a small C-like language I created, that targets a toy assembly language detailed [here](https://www.cs.tufts.edu/comp/40-2011f/handouts/umasm.html) which is used to teach assembly programming to students in Tufts University's CS40 course.
+`jumcc` is a compiler for a small C-like language I created, that targets a simple assembly language detailed [here](https://www.cs.tufts.edu/comp/40-2011f/handouts/umasm.html) used to teach assembly programming to students in Tufts University's CS40 course.
 
 ## Installation
 To compile `jumcc` from source, install [Stack](https://docs.haskellstack.org/en/stable/install_and_upgrade/).
@@ -46,9 +46,6 @@ int[3] ints = {1, 2, 3};
 ```
 The size of an array must be specified with an integer constant.
 
-`jumcc` does not include comprehensive type checking, so it is imperative when declaring and initializing arrays that the number of elements is the greater than or equal to the declared array size (in the case of brace-enclosed lists) or the number of 
-characters + 1 (in the case of a string literal).
-
 Pointers are also supported, and a variable can have a type of pointer to pointer, pointer to array, or pointer to primitive type. They are declared like so:
 ```
 int *a;
@@ -62,7 +59,7 @@ int func(int a) {
     return a;
 }
 ```
-Functions must terminate with a `return` statement. The compiler does not enforce this but failing to do so will result in unintended behavior.
+Functions must terminate with a `return` statement.
 
 The `main` function is the entry point into a program, and there can be only one across all the `.umc` files you intend to compile and link together to create your program.
 ```
@@ -71,8 +68,6 @@ int main() {
     return 0;
 }
 ```
-
-Unlike C, function declarations are not necessary or permitted, but the number and type of arguments are not checked. Be careful!
 
 Functions contain a series of statements. They can be variable declarations as seen before or:
 
@@ -148,7 +143,6 @@ str[3] = str[2];
 ```
 
 ## Notes
-* Initializing arrays of size greater than ~3000 can cause extremely long compile times.
 * The default stack size for a um-C program is 100000 32-bit words, but you can increase this by changing the value in umcrtn.ums
 
 ## Built With
