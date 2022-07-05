@@ -71,10 +71,15 @@ char *b;
 int *c[];
 ```
 
-Programs consist of a series of function definitions, written as in C, each of which consist of a type, identifier, and parameters like so:
+Programs consist of a series of function definitions and declarations, written as in C. Functions may only be called in your code after they have been declared and/or defined:
 ```
+char return_a();
 int func(int a) {
+    return_a();
     return a;
+}
+char return_a() {
+    return 'a';
 }
 ```
 Functions must terminate with a `return` statement.
