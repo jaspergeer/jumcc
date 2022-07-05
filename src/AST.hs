@@ -1,13 +1,13 @@
 module AST where
 
 import CType ( CType )
-import Var ( Var )
+import ASTUtils ( Identifier ) 
 
 newtype AST = AST [ExtDecl] deriving Show
 data ExtDecl = FuncDefn CType String [VarDecl] [Stat]
             | FuncDecl CType String [VarDecl] deriving Show
 data FuncCall = FuncCall String [Expr] deriving Show
-data VarDecl = VarDecl CType Var deriving Show
+data VarDecl = VarDecl CType Identifier deriving Show
 data Stat = ReturnS Expr
         | AssignS Expr Expr
         | VarDeclS VarDecl Expr
@@ -20,8 +20,8 @@ data Stat = ReturnS Expr
         deriving Show
 data Expr = IntE Int
         | CharE Char
-        | VarE Var
-        | RefE Var
+        | VarE Identifier
+        | RefE Identifier
         | Neg Expr
         | Lno Expr
         | No Expr

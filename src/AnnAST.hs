@@ -1,7 +1,7 @@
 module AnnAST where
 import CType ( CType )
-import Var ( Var )
 import Text.Parsec ( SourcePos )
+import ASTUtils ( Identifier )
 
 newtype AnnAST = AnnAST [AExtDecl] deriving Show
 data AExtDecl = AFuncDefn SourcePos CType String [AVarDecl] [AStat] 
@@ -9,7 +9,7 @@ data AExtDecl = AFuncDefn SourcePos CType String [AVarDecl] [AStat]
             deriving Show
 data AFuncCall = AFuncCall SourcePos String [AExpr] 
                 deriving Show
-data AVarDecl = AVarDecl SourcePos CType Var 
+data AVarDecl = AVarDecl SourcePos CType Identifier 
                 deriving Show
 data AStat = AReturnS SourcePos AExpr
         | AAssignS SourcePos AExpr AExpr 
@@ -23,13 +23,13 @@ data AStat = AReturnS SourcePos AExpr
         deriving Show
 data AExpr = AIntE SourcePos Int
         | ACharE SourcePos Char
-        | AVarE SourcePos Var
-        | ARefE SourcePos Var
+        | AVarE SourcePos Identifier
+        | ARefE SourcePos Identifier
         | ANeg SourcePos AExpr
-        | ALno SourcePos AExpr 
+        | ALno SourcePos AExpr
         | ANo SourcePos AExpr 
         | ADref SourcePos AExpr 
-        | AFunE SourcePos AFuncCall 
+        | AFunE SourcePos AFuncCall
         | AGe SourcePos AExpr AExpr 
         | ALe SourcePos AExpr AExpr 
         | AEq SourcePos AExpr AExpr 
@@ -50,6 +50,8 @@ data AExpr = AIntE SourcePos Int
         | AIn SourcePos
         | ACastE SourcePos CType AExpr
         deriving Show
+
+data Ann typ = Ann SourcePos typ deriving Show
 
 concatAST :: AnnAST -> AnnAST -> AnnAST
 concatAST (AnnAST x) (AnnAST y) = AnnAST (x ++ y)
