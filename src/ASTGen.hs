@@ -8,7 +8,7 @@
 module ASTGen where
 
 import Text.Parsec.String (Parser)
-import Text.Parsec.Char ( char, digit, oneOf, spaces, string )
+import Text.Parsec.Char ( char, digit, oneOf, spaces, string, noneOf )
 import Text.Parsec
     ( ParsecT,
       Stream,
@@ -23,17 +23,18 @@ import Text.Parsec
       sepBy,
       (<|>),
       many,
-      try, getPosition, SourcePos )
+      try, getPosition, SourcePos, setPosition )
 import Text.Parsec.Expr (buildExpressionParser)
 import CType ( CType(..) )
-import Var ( Var(..) )
 import AnnAST
     ( AExpr(..),
       AStat(..),
       AVarDecl(..),
       AFuncCall(..),
       AExtDecl(..),
-      AnnAst(..) )
+      AnnAST(..))
+import ASTUtils
+import Text.Parsec.Pos ( SourcePos, newPos )
 
 cSpecSymbs :: String
 cSpecSymbs      = "(){}[];,"
@@ -101,19 +102,16 @@ cChar = try ('\0' <$ string "\\0")
         <|> try ('\'' <$ string "\'")
         <|> try (oneOf strLitChar)
 
-identifier :: Parser String
+identifier :: Parser Identifier
 identifier = many1 (oneOf cIdentChar) <* spaces
-
-var :: Parser Var
-var = Var <$> identifier <* spaces
 
 cType :: Parser CType
 cType = try (leftRec b ptr)
     <|> try b
     where
         ptr = Ptr <$ spaces <* char '*' <* spaces
-        b = try (U32 <$ string "int" <* spaces)
-            <|> try (U8 <$ string "char" <* spaces)
+        b = try (Int <$ string "int" <* spaces)
+            <|> try (Char <$ string "char" <* spaces)
 
 funcCall :: Parser AFuncCall
 funcCall = do
@@ -129,10 +127,17 @@ charExpr :: Parser AExpr
 charExpr = annotate ACharE (<$> (charLiteral <* spaces))
 
 varExpr :: Parser AExpr
-varExpr = annotate AVarE (<$> var)
+varExpr = annotate AVarE (<$> identifier)
 
 inExpr :: Parser AExpr
 inExpr = annotate AIn (<$ string "inb()")
+
+castExpr :: Parser AExpr
+castExpr = do
+        pos <- getPosition
+        typ <- parend cType
+        spaces
+        ACastE pos typ <$> prefixExpr
 
 binExpr :: Parser AExpr
 binExpr = try (chainl1 prefixExpr op)
@@ -176,7 +181,8 @@ prefixExpr = try (annotate ANeg (<$> (string "-" *> primExpr)))
         <|> try (annotate ANo (<$> (string "!" *> primExpr)))
         <|> try (annotate ALno (<$> (string "~" *> primExpr)))
         <|> try (annotate ADref (<$> (string "*" *> primExpr)))
-        <|> try (annotate ARefE (<$> (string "&" *> var)))
+        <|> try (annotate ARefE (<$> (string "&" *> identifier)))
+        <|> try castExpr
         <|> try postfixExpr
 
 postfixExpr :: Parser AExpr
@@ -214,10 +220,10 @@ assignStat = do
 varDecl :: Parser AVarDecl
 varDecl = do
     pos <- getPosition
-    typ <- try (U32 <$ string "int" <* spaces)
-            <|> try (U8 <$ string "char" <* spaces)
+    typ <- try (Int <$ string "int" <* spaces)
+            <|> try (Char <$ string "char" <* spaces)
     ptrs <- many (spaces *> string "*" *> spaces)
-    v <- var
+    v <- identifier
     a <- arr typ
     spaces
     return $ AVarDecl pos (ptr ptrs a) v where
@@ -253,7 +259,7 @@ arrDeclInit x = do
         _parseArr pos where
                 _parseArr pos = try (AArrDeclS pos x <$> (string "=" *> spaces *> strLiteral) <* spaces <* string ";")
                         <|> try (AArrDeclS pos x <$> (string "=" *> spaces *> braced (relExpr `sepBy` (char ',' <* spaces)) <* spaces <* string ";"))
-        
+
 
 arrDeclNoInit:: AVarDecl -> Parser AStat
 arrDeclNoInit x = do
@@ -290,5 +296,14 @@ funcDecl = do
 
 -- program
 
-annAST :: Parser AnnAst
-annAST = AAst <$> many1 (spaces *> extDecl <* spaces)
+annAST :: Parser AnnAST
+annAST = AnnAST <$> many1 (spaces *> try (many (spaces *> sourcePosDirective *> spaces) *> extDecl) <* spaces)
+
+-- directives
+
+sourcePosDirective :: Parser ()
+sourcePosDirective = do
+        srcName <- string "!source_pos " *> dquoted (many (noneOf "\""))
+        line <- read <$> many1 digit
+        col <- spaces *> (read <$> many1 digit) <* string "\n"
+        setPosition $ newPos srcName line col
