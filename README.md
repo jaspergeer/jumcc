@@ -50,7 +50,11 @@ int b = 1 + 2;
 char c;
 char d = 'a' + b;
 ```
-
+To use a value of one type as another without being yelled at by the type checker, use a cast expression:
+```
+int a = 1;
+int *a_but_a_ptr = (int *) a;
+```
 um-C supports 1-dimensional arrays of primitive types which can be declared like so:
 
 ```
