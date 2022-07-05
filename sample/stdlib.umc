@@ -1,0 +1,43 @@
+/**
+ * @file stdlib.umc
+ * @author Jasper Geer
+ * @brief Toy 'standard library' for um-C programs which can be compiled and
+ *        linked against.
+ * @copyright Copyright (c) 2022 Jasper Geer
+ * Licensed under the MIT license.
+ */
+
+// prints a string terminated by an null character to output
+int puts(char *str) {
+    while((*str) != '\0') {
+        outb(*str);
+        str = str + 1;
+    }
+    return 0;
+}
+
+// reads characters from input into a supplied buffer of a specified size
+int gets(char *str, int size) {
+    int ct = 0;
+    while (ct < (size - 1)) {
+    	char in = inb();
+    	if (in == 10) {
+    	    break;
+    	}
+    	str[ct] = in;
+        ct = ct + 1;
+    }
+    str[ct] = '\0';
+    return 0;
+}
+
+// returns the integer representation of a string of digit characters
+int stoi(char *str) {
+    int total = 0;
+    while ((*str) != '\0') {
+        total = total * 10;
+        total = total + (*str) - 48;
+        str = str + 1;
+    }
+    return total;
+}
