@@ -14,14 +14,14 @@ int printInt(int i);
 int main() {
     char num_str[11];
 
-    puts("Enter the desired limit (max 2999): ");
+    puts("Enter the desired limit (max 9999): ");
     gets(num_str, 11);
 
     int num = stoi(num_str);
-    int prime[3000];
+    int prime[10000];
 
     int i = 0;
-    while (i < 3000) {
+    while (i < 10000) {
         prime[i] = 1;
         i = i + 1;
     }
