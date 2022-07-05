@@ -282,7 +282,8 @@ outS = annotate AOut (<$> (string "outb" *> spaces *> parend relExpr <* spaces <
 -- external declarations
 
 extDecl :: Parser AExtDecl
-extDecl = funcDefn
+extDecl = try funcDefn
+        <|> try funcDecl
 
 funcDefn :: Parser AExtDecl
 funcDefn = do
