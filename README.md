@@ -1,4 +1,4 @@
-# jumcc
+# jumcc (Jasper's UM C Compiler)
 `jumcc` is a compiler for a small C-like language I created, that targets the [umasm](https://www.cs.tufts.edu/comp/40-2011f/handouts/umasm.html) language used to teach assembly programming to students in Tufts University's CS40 course.
 
 ## Installation
